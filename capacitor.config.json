@@ -1,0 +1,9 @@
+{
+  "appId": "ng.jambace.app",
+  "appName": "JAMBAce",
+  "webDir": "dist",
+  "server": { "androidScheme": "https" },
+  "plugins": {
+    "Preferences": { "group": "jambace" }
+  }
+}
