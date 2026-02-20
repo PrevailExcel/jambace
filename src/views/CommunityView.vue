@@ -131,7 +131,7 @@
       <!-- ══ CHALLENGE ══ -->
       <div v-else-if="activeTab === 'challenge'" key="challenge" class="tab-content">
         <div class="challenge-hero">
-          <div class="ch-icon"><PhSwords :size="36" weight="fill" /></div>
+          <div class="ch-icon"><PhSword :size="36" weight="fill" /></div>
           <h2 class="ch-title">Challenge a Friend</h2>
           <p class="ch-desc">Send a challenge link. You both answer the same 20 questions in 10 minutes. Highest score wins.</p>
         </div>
@@ -191,7 +191,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import {
-  PhTrophy, PhUsers, PhSwords, PhCaretRight, PhPlus, PhX,
+  PhTrophy, PhUsers, PhSword, PhCaretRight, PhPlus, PhX,
   PhPaperPlaneTilt, PhShare, PhLink, PhCopy,
   PhBookOpen, PhCalculator, PhAtom, PhDna, PhGlobe
 } from '@phosphor-icons/vue'
@@ -204,7 +204,7 @@ const progressStore = useProgressStore()
 const tabs = [
   { id: 'leaderboard', label: 'Leaderboard', icon: PhTrophy },
   { id: 'rooms',       label: 'Study Rooms',  icon: PhUsers },
-  { id: 'challenge',   label: 'Challenge',    icon: PhSwords },
+  { id: 'challenge',   label: 'Challenge',    icon: PhSword },
 ]
 const activeTab = ref('leaderboard')
 const lbPeriod  = ref('week')
