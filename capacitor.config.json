@@ -1,6 +1,6 @@
 {
   "appId": "ng.jambace.app",
-  "appName": "JAMBAce",
+  "appName": "2Wise",
   "webDir": "dist",
   "server": { "androidScheme": "https" },
   "plugins": {

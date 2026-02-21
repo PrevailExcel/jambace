@@ -1,4 +1,4 @@
-# JAMBAce 🎯
+# 2Wise 🎯
 
 **Nigeria's smartest JAMB exam prep app.**  
 Real past questions, verified answers, an AI Tutor that explains like a teacher, and a study plan built around your exam date.
@@ -7,7 +7,7 @@ Real past questions, verified answers, an AI Tutor that explains like a teacher,
 
 ## What Is This?
 
-JAMBAce is a Progressive Web App (PWA) built for Nigerian secondary school students preparing for the JAMB UTME. It works in a browser, installs on Android and iOS like a native app, and is designed to be the only study tool a student needs from registration to exam day.
+2Wise is a Progressive Web App (PWA) built for Nigerian secondary school students preparing for the JAMB UTME. It works in a browser, installs on Android and iOS like a native app, and is designed to be the only study tool a student needs from registration to exam day.
 
 **Target user:** Students aged 16–19, sitting their first or second UTME attempt.  
 **Core problem it solves:** Existing apps have wrong answers, no explanations, and no personalisation. Students are left Googling for help and losing momentum.
@@ -286,7 +286,7 @@ All design tokens live in `src/assets/main.css` as CSS custom properties.
 
 ## Scoring
 
-JAMBAce uses the real JAMB scoring rules:
+2Wise uses the real JAMB scoring rules:
 - ✅ Correct answer: **+1 mark**
 - ❌ Wrong answer: **0** (no negative marking)
 - ⬜ Unanswered: **0**

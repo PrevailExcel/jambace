@@ -135,7 +135,7 @@
         Log Out
       </button>
 
-      <p class="version-note">JAMBAce v0.1.0 · Made with ❤️ for Nigerian students</p>
+      <p class="version-note">2Wise v0.1.0 · Made with ❤️ for Nigerian students</p>
     </div>
 
     <!-- Logout confirmation -->

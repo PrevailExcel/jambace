@@ -23,8 +23,8 @@ export default defineConfig({
         ]
       },
       manifest: {
-        name: 'JAMBAce',
-        short_name: 'JAMBAce',
+        name: '2Wise',
+        short_name: '2Wise',
         description: 'The smartest JAMB prep app in Nigeria',
         theme_color: '#0A0F2C',
         background_color: '#0A0F2C',

@@ -1,4 +1,4 @@
-# JAMBAce — Project Reference
+# 2Wise — Project Reference
 
 ## Tech Stack
 - **Framework:** Vue 3 (Composition API + `<script setup>`)

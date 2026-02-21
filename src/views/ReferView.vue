@@ -143,7 +143,7 @@ function copyLink() {
 }
 
 const shareMessage = computed(() =>
-  `🎯 I've been studying for JAMB on JAMBAce — real past questions, verified answers, and an AI Tutor! Use my link to join: ${referralUrl.value}`
+  `🎯 I've been studying for JAMB on 2Wise — real past questions, verified answers, and an AI Tutor! Use my link to join: ${referralUrl.value}`
 )
 
 const sharePlatforms = [
@@ -160,7 +160,7 @@ const sharePlatforms = [
   {
     id: 'email', label: 'Email', icon: PhEnvelope,
     bg: '#F3E5F5', color: '#7B1FA2',
-    action: () => `mailto:?subject=Join me on JAMBAce!&body=${encodeURIComponent(shareMessage.value)}`
+    action: () => `mailto:?subject=Join me on 2Wise!&body=${encodeURIComponent(shareMessage.value)}`
   },
   {
     id: 'other', label: 'More', icon: PhShareNetwork,
@@ -172,7 +172,7 @@ const sharePlatforms = [
 async function share(platform) {
   if (platform.id === 'other') {
     if (navigator.share) {
-      await navigator.share({ title: 'JAMBAce', text: shareMessage.value, url: referralUrl.value }).catch(() => {})
+      await navigator.share({ title: '2Wise', text: shareMessage.value, url: referralUrl.value }).catch(() => {})
     } else {
       copyLink()
     }
@@ -183,7 +183,7 @@ async function share(platform) {
 
 const howSteps = [
   { title: 'Share your link', desc: 'Send it to friends via WhatsApp, Telegram, or any platform.' },
-  { title: 'Friends sign up', desc: 'They create a JAMBAce account using your unique link.' },
+  { title: 'Friends sign up', desc: 'They create a 2Wise account using your unique link.' },
   { title: 'You both benefit', desc: 'Refer 5 and your account unlocks Premium. Your friends get 30 days free trial.' },
 ]
 

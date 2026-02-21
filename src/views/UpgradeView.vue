@@ -21,7 +21,7 @@
         <div class="plan-header">
           <div class="plan-icon"><PhCrown :size="22" weight="fill" /></div>
           <div>
-            <div class="plan-name">JAMBAce Premium</div>
+            <div class="plan-name">2Wise Premium</div>
             <div class="plan-billing">Annual plan — cancel anytime</div>
           </div>
         </div>
