@@ -254,7 +254,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   PhArrowLeft, PhArrowRight, PhFlag, PhLightbulb,
@@ -292,6 +292,10 @@ const timerRef         = ref(null)
 
 const toast = ref({ visible: false, message: '', type: 'info', icon: null })
 
+onBeforeUnmount(() => {
+  showExplanation.value = false
+  showFlagModal.value = false
+})
 // ── Computed from store
 const session       = computed(() => examStore.session)
 const totalQuestions = computed(() => examStore.totalQuestions)
@@ -354,8 +358,11 @@ function smartBack() {
 // ── Submit
 async function submitExam() {
   showSubmitModal.value = false
-  const result = examStore.submit()
+  const result = await examStore.submit()
   progressStore.recordSession(result)
+
+  console.log('result', result);
+  console.log('result id.id', result.id);
 
   // Update subject stats
   if (result?.questions) {
@@ -371,6 +378,7 @@ async function submitExam() {
     })
   }
 
+    window.removeEventListener('popstate', handlePopState) // ✅ stop blocking back
   router.replace({ name: 'results', params: { sessionId: result.id } })
 }
 

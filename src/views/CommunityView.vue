@@ -24,43 +24,63 @@
           </button>
         </div>
 
-        <!-- My rank card -->
-        <div class="my-rank-card">
-          <div class="mr-left">
-            <span class="mr-rank">#{{ myRank }}</span>
-            <div class="mr-avatar">{{ myInitials }}</div>
-            <div class="mr-info">
-              <strong>{{ myName }} (You)</strong>
-              <span>{{ myScore }} XP</span>
-            </div>
-          </div>
-          <div class="mr-badge" v-if="myRank <= 3">
-            {{ ['🥇', '🥈', '🥉'][myRank - 1] }}
-          </div>
+        <!-- Error state -->
+        <div v-if="lbError" class="lb-error">
+          <span>{{ lbError }}</span>
+          <button class="lb-retry" @click="fetchLeaderboard">Retry</button>
         </div>
 
-        <!-- Top 10 -->
-        <div class="lb-list">
-          <div
-            v-for="(entry, i) in leaderboard"
-            :key="entry.name"
-            class="lb-row"
-            :class="{ me: entry.isMe, top3: i < 3 }"
-          >
-            <div class="lb-rank-badge" :class="i < 3 ? `rank-${i}` : ''">
-              {{ i < 3 ? ['🥇', '🥈', '🥉'][i] : i + 1 }}
+        <!-- Loading skeleton -->
+        <template v-else-if="lbLoading">
+          <div class="lb-skeleton my-rank-card"></div>
+          <div class="lb-list">
+            <div v-for="n in 6" :key="n" class="lb-skeleton lb-skeleton-row"></div>
+          </div>
+        </template>
+
+        <template v-else>
+          <!-- My rank card -->
+          <div class="my-rank-card">
+            <div class="mr-left">
+              <span class="mr-rank">#{{ myBoardEntry.rank ?? '—' }}</span>
+              <div class="mr-avatar">{{ myBoardEntry.initials }}</div>
+              <div class="mr-info">
+                <strong>{{ myBoardEntry.name }} (You)</strong>
+                <span>{{ myBoardEntry.score.toLocaleString() }} XP</span>
+              </div>
             </div>
-            <div class="lb-avatar-circle" :style="{ background: entry.color }">{{ entry.initials }}</div>
-            <div class="lb-info">
-              <span class="lb-name">{{ entry.name }}{{ entry.isMe ? ' (You)' : '' }}</span>
-              <span class="lb-school">{{ entry.school }}</span>
-            </div>
-            <div class="lb-score-wrap">
-              <span class="lb-xp">{{ entry.score }}</span>
-              <span class="lb-xp-lbl">XP</span>
+            <div class="mr-badge" v-if="myBoardEntry.rank <= 3">
+              {{ ['🥇', '🥈', '🥉'][myBoardEntry.rank - 1] }}
             </div>
           </div>
-        </div>
+
+          <!-- Empty state -->
+          <div v-if="leaderboard.length === 0" class="lb-empty">
+            No scores yet for this period. Complete some practice sessions to appear here!
+          </div>
+
+          <!-- Board rows -->
+          <div v-else class="lb-list">
+            <div
+              v-for="(entry, i) in leaderboard"
+              :key="entry.userId"
+              class="lb-row"
+              :class="{ me: entry.isMe, top3: i < 3 }"
+            >
+              <div class="lb-rank-badge" :class="i < 3 ? `rank-${i}` : ''">
+                {{ i < 3 ? ['🥇', '🥈', '🥉'][i] : entry.rank }}
+              </div>
+              <div class="lb-avatar-circle" :style="{ background: entry.color }">{{ entry.initials }}</div>
+              <div class="lb-info">
+                <span class="lb-name">{{ entry.name }}{{ entry.isMe ? ' (You)' : '' }}</span>
+              </div>
+              <div class="lb-score-wrap">
+                <span class="lb-xp">{{ entry.score.toLocaleString() }}</span>
+                <span class="lb-xp-lbl">XP</span>
+              </div>
+            </div>
+          </div>
+        </template>
 
       </div>
 
@@ -189,7 +209,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import {
   PhTrophy, PhUsers, PhSword, PhCaretRight, PhPlus, PhX,
   PhPaperPlaneTilt, PhShare, PhLink, PhCopy,
@@ -197,9 +217,13 @@ import {
 } from '@phosphor-icons/vue'
 import { useUserStore }     from '@/stores/user'
 import { useProgressStore } from '@/stores/progress'
+import { useNetworkStore }  from '@/stores/network'
 
 const userStore     = useUserStore()
 const progressStore = useProgressStore()
+const networkStore  = useNetworkStore()
+
+const API = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
 const tabs = [
   { id: 'leaderboard', label: 'Leaderboard', icon: PhTrophy },
@@ -209,21 +233,75 @@ const tabs = [
 const activeTab = ref('leaderboard')
 const lbPeriod  = ref('week')
 
-// ── My rank
+// ── My display info
 const myName     = computed(() => userStore.profile?.name?.split(' ')[0] || 'You')
-const myInitials = computed(() => (userStore.profile?.name || 'S').split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase())
-const myScore    = computed(() => progressStore.xp || 1240)
-const myRank     = ref(4)
+const myInitials = computed(() => (userStore.profile?.name || 'S').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase())
 
-// ── Leaderboard mock data
-const leaderboard = ref([
-  { name: 'Adaeze O.',  initials: 'AO', school: 'Federal GS Lagos',   score: 3420, color: '#00C853', isMe: false },
-  { name: 'Ibrahim K.', initials: 'IK', school: 'Kano Model Sec',      score: 3180, color: '#7B1FA2', isMe: false },
-  { name: 'Chisom E.',  initials: 'CE', school: 'Holy Child College',  score: 2970, color: '#2196F3', isMe: false },
-  { name: myName.value, initials: myInitials.value, school: 'Your School', score: myScore.value, color: '#00C853', isMe: true },
-  { name: 'Tunde A.',   initials: 'TA', school: 'CMS Grammar Sch.',   score: 1190, color: '#E91E63', isMe: false },
-  { name: 'Ngozi N.',   initials: 'NN', school: 'Queen\'s College',    score: 1080, color: '#FF5722', isMe: false },
-])
+// ── Leaderboard state
+const leaderboard   = ref([])
+const myRank        = ref(null)
+const lbLoading     = ref(false)
+const lbError       = ref(null)
+
+// Deterministic avatar color from a string (user_id or name)
+const AVATAR_COLORS = ['#00C853','#7B1FA2','#2196F3','#E91E63','#FF5722','#FFB800','#00BCD4','#4CAF50']
+function avatarColor(str = '') {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash)
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
+}
+function nameInitials(name = '') {
+  return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '?'
+}
+
+async function fetchLeaderboard() {
+  if (!networkStore.isOnline) {
+    lbError.value = "You're offline. Leaderboard requires an internet connection."
+    return
+  }
+  lbLoading.value = true
+  lbError.value   = null
+  try {
+    const res = await fetch(`${API}/progress/leaderboard?period=${lbPeriod.value}`, {
+      headers: { Authorization: `Bearer ${userStore.token}` },
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data = await res.json()
+
+    leaderboard.value = (data.leaderboard ?? []).map(e => ({
+      rank:     e.rank,
+      userId:   e.user_id,
+      name:     e.name,
+      initials: nameInitials(e.name),
+      color:    avatarColor(e.user_id),
+      score:    e.xp,
+      isMe:     e.is_me,
+      school:   '',   // API doesn't expose school — keep field for template compatibility
+    }))
+    myRank.value = data.my_rank ?? null
+  } catch (err) {
+    lbError.value = 'Could not load leaderboard. Please try again.'
+  } finally {
+    lbLoading.value = false
+  }
+}
+
+// Refetch when period changes or tab switches to leaderboard
+watch(lbPeriod, fetchLeaderboard)
+watch(activeTab, (tab) => { if (tab === 'leaderboard') fetchLeaderboard() })
+onMounted(fetchLeaderboard)
+
+// Derived: the "my rank" card data (find self in board or fall back to store XP)
+const myBoardEntry = computed(() =>
+  leaderboard.value.find(e => e.isMe) ?? {
+    rank:     myRank.value,
+    name:     myName.value,
+    initials: myInitials.value,
+    color:    '#00C853',
+    score:    progressStore.xp,
+    isMe:     true,
+  }
+)
 
 // ── Study rooms
 const studyRooms = [
@@ -391,6 +469,35 @@ function acceptChallenge(c) {
 .lb-score-wrap { text-align: right; }
 .lb-xp     { display: block; font-family: var(--font-display); font-size: 16px; font-weight: 800; color: var(--navy); }
 .lb-xp-lbl { font-size: 10px; color: var(--muted); }
+
+/* ── LEADERBOARD STATES ── */
+.lb-error {
+  display: flex; align-items: center; justify-content: space-between;
+  background: #fff1f1; color: #c0392b;
+  font-size: 13px; padding: 12px 14px; border-radius: 12px;
+  border: 1px solid #f5c6c6;
+}
+.lb-retry {
+  background: none; border: 1.5px solid #c0392b; color: #c0392b;
+  padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.lb-empty {
+  font-size: 13.5px; color: var(--muted); text-align: center;
+  padding: 24px 0; line-height: 1.6;
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.lb-skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease infinite;
+  border-radius: 14px;
+}
+.lb-skeleton.my-rank-card { height: 68px; }
+.lb-skeleton-row { height: 60px; margin-bottom: 6px; }
 
 /* ── STUDY ROOMS ── */
 .rooms-list { display: flex; flex-direction: column; gap: 10px; }

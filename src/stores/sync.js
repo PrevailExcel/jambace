@@ -103,13 +103,27 @@ export const useSyncStore = defineStore('sync', () => {
       }
 
       case 'session_submit': {
-        const res = await api('POST', `/sessions/${item.payload.session_id}/submit`, {
-          answers:     item.payload.answers,
+        console.log('item payload', item.payload)
+  const res = await api(
+    'POST',
+    '/sync/sessions',
+    {
+      sessions: [
+        {
+          session_id: item.payload.session_id,
+          type: item.payload.type,
+          subjects: item.payload.subjects,
+          question_ids: item.payload.question_ids,
+          answers: item.payload.answers,
           flagged_ids: item.payload.flagged_ids,
-          time_used:   item.payload.time_used,
-          started_at:  item.payload.started_at,   // server must accept past timestamps
+          time_used: item.payload.time_used,
+          started_at: item.payload.started_at,
           submitted_at: item.payload.submitted_at,
-        }, userStore.token)
+        }
+      ]
+    },
+    userStore.token
+  )
 
         // Update progress from server response (XP, badges etc.)
         const progressStore = useProgressStore()
@@ -119,7 +133,26 @@ export const useSyncStore = defineStore('sync', () => {
           })
         }
         break
-      }
+}
+
+      // case 'session_submit': {
+      //   const res = await api('POST', `/sessions/${item.payload.session_id}/submit`, {
+      //     answers:     item.payload.answers,
+      //     flagged_ids: item.payload.flagged_ids,
+      //     time_used:   item.payload.time_used,
+      //     started_at:  item.payload.started_at,   // server must accept past timestamps
+      //     submitted_at: item.payload.submitted_at,
+      //   }, userStore.token)
+
+      //   // Update progress from server response (XP, badges etc.)
+      //   const progressStore = useProgressStore()
+      //   if (res.new_badges?.length) {
+      //     res.new_badges.forEach(b => {
+      //       if (!progressStore.badges.includes(b)) progressStore.badges.push(b)
+      //     })
+      //   }
+      //   break
+      // }
 
       case 'question_flag': {
         await api('POST', `/questions/${item.payload.question_id}/flag`, {
