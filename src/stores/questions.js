@@ -4,41 +4,48 @@
  * Offline strategy:
  *   - Premium/trial users: proactive bulk download of all their subjects via
  *     GET /api/sync/questions. Stored per-subject in `cache`.
- *   - On fetch: serve from cache if offline, fetch from API if online (and re-cache).
- *   - Coverage map tracks which subjects are fully downloaded so the UI can
- *     show "ready for offline" per subject.
- *   - Free users who go offline see a clear "go premium for offline access" message.
+ *   - On fetch: serve from cache if offline, fetch from API if online (and merge).
+ *   - Coverage map tracks which subjects are downloaded so the UI can show
+ *     "English — 847 questions, last synced 2h ago".
+ *
+ * Persistence:
+ *   `coverage` (metadata only) → pinia persist → plain localStorage. Safe.
+ *   `cache`    (question data) → manual async   → AES-256-GCM encrypted localStorage.
+ *
+ *   WHY MANUAL?
+ *   pinia-plugin-persistedstate v3 does not support async storage — it calls
+ *   getItem/setItem synchronously and ignores returned Promises. An async
+ *   storage shim silently breaks hydration: cache always comes back {}.
+ *   So we manage cache persistence ourselves: loadCacheFromDisk() on first
+ *   access, saveCacheToDisk() after every write.
  */
 
-import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import { useNetworkStore } from './network'
-import { useUserStore }    from './user'
-import { secureStorage }   from '@/lib/secureStorage'
+import { defineStore }      from 'pinia'
+import { ref, computed }    from 'vue'
+import { useNetworkStore }  from './network'
+import { useUserStore }     from './user'
+import { saveCache, loadCache } from '@/lib/secureStorage'
 import { initEncryption, hasEncryptionKey } from '@/lib/crypto'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
 export const useQuestionsStore = defineStore('questions', () => {
-  // ── State ───────────────────────────────────────────────────────────────
+  // ── State ────────────────────────────────────────────────────────────────
 
-  /**
-   * cache: { [subject]: Question[] }
-   * Persisted. Premium users get explanations included.
-   */
+  /** { [subject]: Question[] } — in memory; persisted manually via saveCache/loadCache */
   const cache = ref({})
 
-  /**
-   * coverage: { [subject]: { downloadedAt: ISO, count: number } }
-   * Lets us show "English — 847 questions, last synced 2h ago"
-   */
+  /** { [subject]: { downloadedAt: ISO, count: number } } — persisted by pinia (plain) */
   const coverage = ref({})
 
   const loading          = ref(false)
-  const downloadProgress = ref(0)   // 0–100 during bulk download
+  const downloadProgress = ref(0)
   const isDownloading    = ref(false)
 
-  // ── Getters ─────────────────────────────────────────────────────────────
+  // Guard: have we loaded the encrypted cache from disk this session?
+  let _diskLoadPromise = null
+
+  // ── Getters ──────────────────────────────────────────────────────────────
 
   const subjectsReadyOffline = computed(() =>
     Object.keys(coverage.value).filter(s => coverage.value[s]?.count > 0)
@@ -52,17 +59,46 @@ export const useQuestionsStore = defineStore('questions', () => {
     return coverage.value[subject] ?? null
   }
 
-  // ── Fetch (single subject / filtered) ──────────────────────────────────
+  // ── Disk I/O ─────────────────────────────────────────────────────────────
+
+  /**
+   * Ensure the encryption key is ready, then load the encrypted cache from
+   * localStorage into `cache`. Idempotent — only runs once per session.
+   */
+  async function ensureCacheLoaded() {
+    if (_diskLoadPromise) return _diskLoadPromise
+
+    _diskLoadPromise = (async () => {
+      const userStore = useUserStore()
+      if (!userStore.token) return   // not logged in — nothing to load
+
+      // Derive AES key if it hasn't been derived yet (e.g. very fast page load)
+      if (!hasEncryptionKey()) {
+        await initEncryption(userStore.token)
+      }
+
+      const loaded = await loadCache()
+      if (loaded && Object.keys(loaded).length > 0) {
+        cache.value = loaded
+      }
+    })()
+
+    return _diskLoadPromise
+  }
+
+  /** Encrypt and persist the current cache to localStorage. */
+  async function persistCache() {
+    await saveCache(cache.value)
+  }
+
+  // ── Fetch (single subject / filtered) ────────────────────────────────────
 
   async function fetchQuestions({ subject, year, topic, count = 40, shuffle = true }) {
     const networkStore = useNetworkStore()
     const userStore    = useUserStore()
 
-    // Ensure the AES key is derived before we try to read from the encrypted cache.
-    // On cold boot the key is initialised in main.js but is async — we wait for it.
-    if (!hasEncryptionKey() && userStore.token) {
-      await initEncryption(userStore.token)
-    }
+    // Always ensure the encrypted cache is loaded before serving from it
+    await ensureCacheLoaded()
 
     // ── Offline path ──────────────────────────────────────────────────────
     if (!networkStore.isOnline) {
@@ -86,8 +122,12 @@ export const useQuestionsStore = defineStore('questions', () => {
       const res = await apiFetch(`/questions?${params}`, userStore.token)
       const { questions } = await res.json()
 
-      // Merge new questions into subject cache (premium users only)
-      if (userStore.isPremium) mergeIntoCache(subject, questions)
+      // Merge into in-memory cache (premium users only)
+      if (userStore.isPremium) {
+        mergeIntoCache(subject, questions)
+        // Persist the updated cache — non-blocking
+        persistCache()
+      }
 
       return shuffleIfNeeded(questions, shuffle)
     } finally {
@@ -112,12 +152,8 @@ export const useQuestionsStore = defineStore('questions', () => {
     return all.flat()
   }
 
-  // ── Bulk Download (proactive offline prep) ─────────────────────────────
+  // ── Bulk Download (proactive offline prep) ────────────────────────────────
 
-  /**
-   * Download ALL questions for the user's subjects in one request per subject.
-   * Called after setup, on "Sync Now" tap, or on login if coverage is empty.
-   */
   async function syncAllSubjects(subjects) {
     const networkStore = useNetworkStore()
     const userStore    = useUserStore()
@@ -125,6 +161,11 @@ export const useQuestionsStore = defineStore('questions', () => {
     if (!networkStore.isOnline) return { ok: false, reason: 'offline' }
     if (!userStore.isPremium)   return { ok: false, reason: 'not_premium' }
     if (isDownloading.value)    return { ok: false, reason: 'already_downloading' }
+
+    // Make sure the encryption key is ready before we write to disk
+    if (!hasEncryptionKey() && userStore.token) {
+      await initEncryption(userStore.token)
+    }
 
     isDownloading.value    = true
     downloadProgress.value = 0
@@ -140,7 +181,6 @@ export const useQuestionsStore = defineStore('questions', () => {
         )
         const { questions } = await res.json()
 
-        // Full replace for this subject — this is the authoritative copy
         cache.value[subject] = questions
         coverage.value[subject] = {
           downloadedAt: new Date().toISOString(),
@@ -151,10 +191,14 @@ export const useQuestionsStore = defineStore('questions', () => {
         downloadProgress.value = Math.round((done / total) * 100)
       }
 
+      // Persist the complete cache to encrypted localStorage once all subjects done
+      await persistCache()
+
       return { ok: true, total: totalCachedQuestions.value }
     } catch (err) {
-      // 429 — rate limit hit mid-sync. Save progress so far and tell the UI
-      // clearly — no point retrying, the limit resets at midnight.
+      // Save whatever we downloaded before the error hit
+      if (done > 0) await persistCache()
+
       if (err.status === 429) {
         return {
           ok:            false,
@@ -170,7 +214,7 @@ export const useQuestionsStore = defineStore('questions', () => {
     }
   }
 
-  // ── Flag a question ────────────────────────────────────────────────────
+  // ── Flag a question ───────────────────────────────────────────────────────
 
   async function flagQuestion(questionId, reason, note) {
     const networkStore = useNetworkStore()
@@ -182,13 +226,12 @@ export const useQuestionsStore = defineStore('questions', () => {
         body:   JSON.stringify({ reason, note }),
       })
     } else {
-      // Enqueue for when we're back online
       const { useSyncStore } = await import('./sync')
       useSyncStore().enqueue('question_flag', { question_id: questionId, reason, note })
     }
   }
 
-  // ── Cache helpers ──────────────────────────────────────────────────────
+  // ── Cache helpers ─────────────────────────────────────────────────────────
 
   function mergeIntoCache(subject, incoming) {
     const existing    = cache.value[subject] ?? []
@@ -201,9 +244,11 @@ export const useQuestionsStore = defineStore('questions', () => {
     }
   }
 
-  function clearCache() {
+  async function clearCache() {
     cache.value    = {}
     coverage.value = {}
+    _diskLoadPromise = null
+    // The encrypted blob on disk will be wiped by clearSecureCache() on logout
   }
 
   function filterAndReturn(questions, { year, topic, count, shuffle }) {
@@ -244,10 +289,9 @@ export const useQuestionsStore = defineStore('questions', () => {
     subjectsReadyOffline, totalCachedQuestions, coverageFor,
     fetchQuestions, fetchMockExam, fetchWeakAreaQuestions,
     syncAllSubjects, flagQuestion, clearCache,
+    ensureCacheLoaded,   // exposed so main.js can warm it on boot
   }
 }, {
-  persist: {
-    paths:   ['cache', 'coverage'],
-    storage: secureStorage,
-  },
+  // Only persist coverage (metadata) — cache is persisted manually via saveCache/loadCache
+  persist: { paths: ['coverage'] },
 })

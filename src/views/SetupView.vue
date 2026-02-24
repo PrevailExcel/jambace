@@ -3,7 +3,7 @@
     <div class="setup-header">
       <div class="setup-logo">
         <div class="logo-icon"><PhTarget :size="18" weight="fill" /></div>
-        <span class="logo-text">JAMB<span>Ace</span></span>
+        <span class="logo-text">2W<span>ise</span></span>
       </div>
       <div class="step-dots">
         <div v-for="i in 3" :key="i" class="step-dot" :class="{ active: step >= i, done: step > i }">

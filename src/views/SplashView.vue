@@ -6,7 +6,7 @@
           <div class="logo-icon">
             <PhTarget :size="32" weight="fill" />
           </div>
-          <span class="logo-text">JAMB<span>Ace</span></span>
+          <span class="logo-text">2W<span>ise</span></span>
         </div>
       </Transition>
       <Transition name="fade-up">

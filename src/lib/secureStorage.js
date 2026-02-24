@@ -1,92 +1,93 @@
 /**
  * secureStorage.js
  *
- * A drop-in replacement for `localStorage` that transparently encrypts
- * values using AES-256-GCM before writing, and decrypts on read.
+ * Manual async persistence for the encrypted question cache.
  *
- * Used as the `storage` option in pinia-plugin-persistedstate for the
- * questions store — so the question cache is always encrypted at rest.
+ * WHY NOT pinia-plugin-persistedstate?
+ *   pinia-plugin-persistedstate v3 does not support async storage —
+ *   it calls getItem/setItem synchronously and ignores returned Promises.
+ *   Passing an async storage object silently breaks hydration: the cache
+ *   always comes back empty, and writes are never awaited.
  *
- * The interface matches the Storage API that pinia-plugin-persistedstate
- * expects: { getItem(key), setItem(key, value), removeItem(key) }
+ * HOW THIS WORKS INSTEAD:
+ *   - The questions store keeps `cache` as a normal reactive ref (in-memory).
+ *   - `coverage` stays in pinia's standard persist (plain localStorage —
+ *     it's just metadata: counts and timestamps, no question content).
+ *   - After every bulk sync, the store calls `saveCache(cache)` explicitly.
+ *   - On app boot / first fetch, the store calls `loadCache()` to hydrate
+ *     `cache` from the encrypted blob on disk.
  *
- * All methods are async-compatible via Promise returns, which
- * pinia-plugin-persistedstate supports in its `storage` option.
+ * Storage format:
+ *   localStorage key: "2w_enc:questions"
+ *   value: base64( 12-byte-IV + AES-256-GCM-ciphertext )
  *
- * Keys in localStorage:
- *   "2w_enc:{storeName}" → base64(IV + AES-GCM ciphertext)
- *
- * The prefix "2w_enc:" makes it clear to anyone inspecting storage that
- * the value is encrypted and intentionally unreadable.
+ * Security:
+ *   The AES key is derived from the user's Bearer token via HKDF (see crypto.js).
+ *   The key exists only in memory — never written to disk.
+ *   Logout wipes the in-memory key and deletes the ciphertext.
  */
 
 import { encryptValue, decryptValue, hasEncryptionKey } from '@/lib/crypto'
 
-const PREFIX = '2w_enc:'
+const STORAGE_KEY = '2w_enc:questions'
 
-function storageKey(key) {
-  return PREFIX + key
-}
-
-export const secureStorage = {
-  /**
-   * Read and decrypt a value.
-   * Returns null if not found, key not initialised, or decryption fails
-   * (e.g. data written by a different user's key — safe to treat as cache miss).
-   */
-  async getItem(key) {
-    const raw = localStorage.getItem(storageKey(key))
-    if (!raw) return null
-    if (!hasEncryptionKey()) return null   // logged out — don't decrypt
-
-    try {
-      const value = await decryptValue(raw)
-      // pinia-plugin-persistedstate expects the serialised string back
-      // We stored the already-parsed value, so re-stringify for the plugin
-      return JSON.stringify(value)
-    } catch {
-      // Wrong key (different user / rotated salt) or tampered data
-      // Treat as cache miss — the store will re-download from the API
-      console.warn('[secureStorage] Failed to decrypt cache for key:', key, '— treating as empty')
-      localStorage.removeItem(storageKey(key))
-      return null
-    }
-  },
-
-  /**
-   * Encrypt and write a value.
-   * If the key is not initialised (user logged out mid-session), silently
-   * skip the write — better to lose the cache than to write plaintext.
-   */
-  async setItem(key, value) {
-    if (!hasEncryptionKey()) {
-      // No key = logged out. Don't write plaintext questions to disk.
-      return
-    }
-    try {
-      // value coming from pinia-plugin-persistedstate is already a JSON string
-      const parsed    = JSON.parse(value)
-      const encrypted = await encryptValue(parsed)
-      localStorage.setItem(storageKey(key), encrypted)
-    } catch (err) {
-      console.error('[secureStorage] Encryption failed for key:', key, err)
-    }
-  },
-
-  removeItem(key) {
-    localStorage.removeItem(storageKey(key))
-  },
+/**
+ * Persist the full question cache to localStorage, encrypted.
+ * Call this after every successful sync.
+ *
+ * @param {Object} cache  Plain object: { [subject]: Question[] }
+ */
+export async function saveCache(cache) {
+  if (!hasEncryptionKey()) {
+    // No key means the user is logged out or the key hasn't been derived yet.
+    // Don't write plaintext questions to disk.
+    console.warn('[secureStorage] saveCache skipped — no encryption key')
+    return
+  }
+  try {
+    const encrypted = await encryptValue(cache)
+    localStorage.setItem(STORAGE_KEY, encrypted)
+  } catch (err) {
+    console.error('[secureStorage] Failed to encrypt cache:', err)
+  }
 }
 
 /**
- * Wipe all encrypted cache entries from localStorage.
- * Call on logout — leaves no question data behind.
+ * Load and decrypt the question cache from localStorage.
+ * Returns the cache object, or {} if nothing is stored / decryption fails.
+ *
+ * @returns {Promise<Object>}  { [subject]: Question[] }
+ */
+export async function loadCache() {
+  const raw = localStorage.getItem(STORAGE_KEY)
+  if (!raw) return {}
+  if (!hasEncryptionKey()) {
+    // Key not yet derived — caller should retry after initEncryption()
+    return {}
+  }
+  try {
+    return await decryptValue(raw)
+  } catch (err) {
+    // Wrong key (different user or rotated salt) or tampered data.
+    // Treat as empty — questions will be re-downloaded on next sync.
+    console.warn('[secureStorage] Decryption failed — treating cache as empty:', err.message)
+    localStorage.removeItem(STORAGE_KEY)
+    return {}
+  }
+}
+
+/**
+ * Delete the encrypted cache from localStorage.
+ * Call on logout so no question data is left on disk.
  */
 export function clearSecureCache() {
-  const keysToRemove = []
+  localStorage.removeItem(STORAGE_KEY)
+
+  // Belt-and-suspenders: also clear any legacy keys from the old implementation
+  const toRemove = []
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i)
-    if (k && k.startsWith(PREFIX)) keysToRemove.push(k)
+    if (k && k.startsWith('2w_enc:')) toRemove.push(k)
   }
-  keysToRemove.forEach(k => localStorage.removeItem(k))
+  toRemove.forEach(k => localStorage.removeItem(k))
 }

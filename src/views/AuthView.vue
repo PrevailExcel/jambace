@@ -9,7 +9,7 @@
       <!-- Logo -->
       <div class="auth-logo">
         <div class="logo-icon"><PhTarget :size="22" weight="fill" /></div>
-        <span class="logo-text">JAMB<span>Ace</span></span>
+        <span class="logo-text">2W<span>ise</span></span>
       </div>
 
       <!-- Tab switcher -->
