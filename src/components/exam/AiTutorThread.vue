@@ -27,11 +27,19 @@
 
         <!-- Empty state -->
         <div v-if="!threadStarted" class="empty-thread">
-          <div class="et-avatar"><PhRobot :size="22" weight="fill" /></div>
-          <p class="et-text">Ask me anything about this question — I'll explain it differently, give examples, or break down the working step by step.</p>
-          <div class="suggestions">
-            <button v-for="s in suggestions" :key="s" class="suggestion-chip" @click="startThread(s)">{{ s }}</button>
+          <!-- Offline blocked message -->
+          <div v-if="offlineBlocked" class="offline-blocked">
+            <div class="ob-icon">📵</div>
+            <strong>AI Tutor needs internet</strong>
+            <p>You're offline right now. The explanation above is still available. Come back online to ask the AI Tutor questions.</p>
           </div>
+          <template v-else>
+            <div class="et-avatar"><PhRobot :size="22" weight="fill" /></div>
+            <p class="et-text">Ask me anything about this question — I'll explain it differently, give examples, or break down the working step by step.</p>
+            <div class="suggestions">
+              <button v-for="s in suggestions" :key="s" class="suggestion-chip" @click="startThread(s)">{{ s }}</button>
+            </div>
+          </template>
         </div>
 
         <!-- Message list -->
@@ -47,7 +55,9 @@
         </template>
 
         <div v-if="tutor.error" class="error-chip">
-          <PhWarningCircle :size="14" weight="fill" /> {{ tutor.error }}
+          <PhWarningCircle :size="14" weight="fill" />
+          <span v-if="tutor.error === 'offline'">You went offline. Reconnect and try again.</span>
+          <span v-else>Something went wrong. Please try again.</span>
         </div>
       </div>
 
@@ -100,6 +110,7 @@ const inputText     = ref('')
 const messagesEl    = ref(null)
 const inputEl       = ref(null)
 const threadStarted = ref(false)
+const offlineBlocked = ref(false)  // true when user tried to open while offline
 
 const context = computed(() => ({
   text: props.questionText, options: props.options,
@@ -121,8 +132,12 @@ const suggestions = computed(() => {
 
 async function startThread(text) {
   if (!userStore.canUseAiTutor) return
-  const opened = tutor.openThread(context.value)
-  if (!opened) return
+  offlineBlocked.value = false
+  const result = await tutor.openThread(context.value)
+  if (!result.ok) {
+    if (result.reason === 'offline') { offlineBlocked.value = true }
+    return
+  }
   threadStarted.value = true
   await nextTick()
   scrollToBottom()
@@ -187,6 +202,10 @@ watch(() => tutor.messages.length, scrollToBottom)
 .bubble.typing span:nth-child(3) { animation-delay: 0.36s; }
 @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-5px); opacity: 1; } }
 .error-chip { display: flex; align-items: center; gap: 6px; background: rgba(255,68,68,0.12); color: #FF6B6B; border-radius: 10px; padding: 9px 12px; font-size: 12.5px; }
+.offline-blocked { text-align: center; padding: 16px 8px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.ob-icon { font-size: 32px; }
+.offline-blocked strong { font-size: 14px; font-weight: 700; color: var(--text); }
+.offline-blocked p { font-size: 12.5px; color: var(--muted); line-height: 1.5; margin: 0; }
 .thread-input-wrap { display: flex; align-items: flex-end; gap: 8px; background: rgba(255,255,255,0.07); border-radius: 14px; padding: 8px 8px 8px 14px; border: 1.5px solid rgba(255,255,255,0.08); transition: border-color 0.2s; }
 .thread-input-wrap:focus-within { border-color: rgba(0,200,83,0.4); }
 .thread-input { flex: 1; background: transparent; border: none; outline: none; font-family: var(--font-body); font-size: 13.5px; color: white; resize: none; line-height: 1.5; min-height: 22px; max-height: 100px; overflow-y: auto; }

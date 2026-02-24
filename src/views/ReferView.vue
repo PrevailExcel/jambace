@@ -133,7 +133,7 @@ const userStore = useUserStore()
 const copied = ref(false)
 
 const referralUrl = computed(() =>
-  `https://jambace.app/join?ref=${userStore.referralCode || 'DEMO'}`
+  `https://2wise.com.ng/join?ref=${userStore.referralCode || 'DEMO'}`
 )
 
 function copyLink() {

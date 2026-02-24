@@ -160,11 +160,17 @@ import {
   PhEnvelope, PhLock, PhEye, PhEyeSlash,
   PhGift, PhWarning
 } from '@phosphor-icons/vue'
-import { useUserStore } from '@/stores/user'
+import { useUserStore }     from '@/stores/user'
+import { useSyncStore }     from '@/stores/sync'
+import { useQuestionsStore } from '@/stores/questions'
 
-const router    = useRouter()
-const route     = useRoute()
-const userStore = useUserStore()
+const API = import.meta.env.VITE_API_BASE_URL ?? '/api'
+
+const router          = useRouter()
+const route           = useRoute()
+const userStore       = useUserStore()
+const syncStore       = useSyncStore()
+const questionsStore  = useQuestionsStore()
 
 const mode         = ref('signup')
 const showPassword = ref(false)
@@ -180,27 +186,33 @@ const form = reactive({
 })
 
 async function submit() {
-  error.value = ''
+  error.value   = ''
   loading.value = true
-  try {
-    // TODO: replace with real API call
-    await new Promise(r => setTimeout(r, 1000)) // simulate
 
-    // Mock: create a session
-    userStore.setProfile({
-      profile: { id: crypto.randomUUID(), name: form.name || 'Student', email: form.email },
-      token: 'mock-token-' + Date.now(),
-      trialStartDate: new Date().toISOString(),
-      referralCount: 0,
-      referralCode: 'ACE' + Math.random().toString(36).substr(2, 5).toUpperCase(),
-      monthlyCredits: 100,
-      purchasedCredits: 0
+  try {
+    const endpoint = mode.value === 'signup' ? '/auth/register' : '/auth/login'
+    const body     = mode.value === 'signup'
+      ? { name: form.name, email: form.email, password: form.password, referral_code: form.referralCode || undefined }
+      : { email: form.email, password: form.password }
+
+    const res  = await fetch(`${API}${endpoint}`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(body),
     })
 
-    // New users go to setup, returning users go to dashboard
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.message ?? 'Authentication failed.')
+
+    // Hydrate stores from server response
+    userStore.setProfile(data)
+
+    // Non-blocking: bootstrap progress + start offline download
+    afterLogin()
+
     const redirect = route.query.redirect
     if (redirect) router.replace(redirect)
-    else if (mode.value === 'signup' || !userStore.subjects.length) router.replace({ name: 'setup' })
+    else if (!userStore.subjects.length) router.replace({ name: 'setup' })
     else router.replace({ name: 'dashboard' })
 
   } catch (e) {
@@ -211,8 +223,16 @@ async function submit() {
 }
 
 async function googleAuth() {
-  // TODO: implement Google OAuth
+  // TODO: Google OAuth — load gsi library, call google.accounts.id.initialize()
   error.value = 'Google sign-in coming soon.'
+}
+
+function afterLogin() {
+  // Pull server state and pre-download questions — both non-blocking
+  syncStore.bootstrapFromServer()
+  if (userStore.isPremium && userStore.subjects.length) {
+    questionsStore.syncAllSubjects(userStore.subjects)
+  }
 }
 
 function forgotPassword() {

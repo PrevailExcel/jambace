@@ -24,26 +24,34 @@
 
         <p class="tab-desc">Choose a subject and topic to drill specific areas.</p>
 
+        <!-- Offline / no-cache note -->
+        <div v-if="!networkStore.isOnline && !hasAnyCached" class="offline-note">
+          <PhWifiSlash :size="14" weight="fill" />
+          You're offline. Download questions while online to practise offline.
+        </div>
+
         <div class="subject-grid">
           <div
             v-for="subj in availableSubjects"
             :key="subj.id"
             class="subj-card"
-            :class="{ selected: selectedSubject === subj.id }"
+            :class="{ selected: selectedSubject === subj.id, disabled: subj.count === 0 }"
             :style="selectedSubject === subj.id ? { borderColor: subj.color, background: subj.bg } : {}"
-            @click="selectSubject(subj.id)"
+            @click="subj.count > 0 && selectSubject(subj.id)"
           >
             <div class="subj-icon" :style="{ background: subj.bg }">
               <component :is="subj.icon" :size="24" weight="fill" :style="{ color: subj.color }" />
             </div>
             <span class="subj-name">{{ subj.label }}</span>
-            <span class="subj-count">{{ subj.count }} Qs</span>
+            <span class="subj-count" :class="{ zero: subj.count === 0 }">
+              {{ subj.count > 0 ? subj.count + ' Qs' : 'Not downloaded' }}
+            </span>
           </div>
         </div>
 
-        <!-- Topic list (visible once subject chosen) -->
+        <!-- Topic list -->
         <Transition name="fade-drop">
-          <div v-if="selectedSubject" class="topic-section">
+          <div v-if="selectedSubject && topicsForSubject.length" class="topic-section">
             <div class="topic-section-header">
               <span class="ts-title">Topics in {{ currentSubjectLabel }}</span>
               <button class="clear-btn" @click="selectedSubject = null; selectedTopic = null">Clear</button>
@@ -68,7 +76,7 @@
           <label class="filter-label">Year</label>
           <select v-model="selectedYear" class="filter-select">
             <option value="">All Years</option>
-            <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
+            <option v-for="y in yearsForSubject" :key="y" :value="y">{{ y }}</option>
           </select>
         </div>
 
@@ -91,7 +99,7 @@
           <span><strong>{{ filteredCount }}</strong> questions match your filters</span>
         </div>
 
-        <button class="btn-start" :disabled="!selectedSubject" @click="startPractice">
+        <button class="btn-start" :disabled="!selectedSubject || filteredCount === 0" @click="startPractice">
           <PhPlay :size="16" weight="fill" />
           Start Practice Session
         </button>
@@ -116,7 +124,7 @@
             </div>
             <div class="spec-item">
               <PhBooks :size="16" weight="fill" />
-              4 subjects
+              {{ userStore.subjects.length || 4 }} subjects
             </div>
           </div>
           <div class="mock-rules">
@@ -125,12 +133,21 @@
               <span>{{ r }}</span>
             </div>
           </div>
-          <button class="btn-start" @click="startMock">
+
+          <!-- Offline: show which subjects are ready -->
+          <div v-if="!networkStore.isOnline" class="offline-subjects-note">
+            <PhWifiSlash :size="13" weight="fill" />
+            Offline — using downloaded questions.
+            <span v-if="subjectsReadyCount < (userStore.subjects.length || 4)" class="warn-text">
+              Only {{ subjectsReadyCount }}/{{ userStore.subjects.length || 4 }} subjects downloaded.
+            </span>
+          </div>
+
+          <button class="btn-start" :disabled="totalMockQuestions === 0" @click="startMock">
             <PhRocketLaunch :size="16" weight="fill" />
             Begin Mock Exam
           </button>
 
-          <!-- Free limit warning -->
           <div v-if="!userStore.isFullPremium" class="mock-limit-note">
             <PhWarning :size="13" weight="fill" />
             Free users get 3 mock exams per week.
@@ -199,20 +216,24 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   PhBooks, PhLightning, PhTarget, PhPlay, PhRocketLaunch,
-  PhListNumbers, PhClock, PhInfo, PhArrowRight, PhWarning,
+  PhListNumbers, PhClock, PhInfo, PhArrowRight, PhWarning, PhWifiSlash,
   PhCalculator, PhAtom, PhDna, PhBookOpen, PhGlobe, PhBank
 } from '@phosphor-icons/vue'
-import { useExamStore }     from '@/stores/exam'
-import { useUserStore }     from '@/stores/user'
-import { useProgressStore } from '@/stores/progress'
-import { SAMPLE_QUESTIONS, SUBJECT_CONFIG, EXAM_CONFIGS } from '@/data/questions'
+import { useExamStore }      from '@/stores/exam'
+import { useUserStore }      from '@/stores/user'
+import { useProgressStore }  from '@/stores/progress'
+import { useQuestionsStore } from '@/stores/questions'
+import { useNetworkStore }   from '@/stores/network'
+import { SUBJECT_CONFIG, EXAM_CONFIGS } from '@/data/questions'
 import dayjs from 'dayjs'
 
-const router        = useRouter()
-const examStore     = useExamStore()
-const userStore     = useUserStore()
-const progressStore = useProgressStore()
-const subjectConfig = SUBJECT_CONFIG
+const router          = useRouter()
+const examStore       = useExamStore()
+const userStore       = useUserStore()
+const progressStore   = useProgressStore()
+const questionsStore  = useQuestionsStore()
+const networkStore    = useNetworkStore()
+const subjectConfig   = SUBJECT_CONFIG
 
 // ── Tabs
 const tabs = [
@@ -234,37 +255,47 @@ const subjectIcons = {
   economics: PhBank, government: PhGlobe
 }
 
+// ── Subjects — count from cache, not SAMPLE_QUESTIONS
 const availableSubjects = computed(() =>
-  (userStore.subjects || []).map(id => ({
-    id,
-    ...SUBJECT_CONFIG[id],
-    icon: subjectIcons[id] || PhBooks,
-    count: SAMPLE_QUESTIONS.filter(q => q.subject === id).length
-  }))
+  (userStore.subjects || []).map(id => {
+    const cached = questionsStore.cache[id] ?? []
+    return {
+      id,
+      ...SUBJECT_CONFIG[id],
+      icon:  subjectIcons[id] || PhBooks,
+      count: cached.length,
+    }
+  })
 )
 
 const currentSubjectLabel = computed(() =>
   availableSubjects.value.find(s => s.id === selectedSubject.value)?.label || ''
 )
 
+// ── Topics from cache for selected subject
 const topicsForSubject = computed(() => {
   if (!selectedSubject.value) return []
-  const questions = SAMPLE_QUESTIONS.filter(q => q.subject === selectedSubject.value)
-  const topicMap = {}
-  questions.forEach(q => {
-    if (!topicMap[q.topic]) topicMap[q.topic] = 0
-    topicMap[q.topic]++
+  const qs = questionsStore.cache[selectedSubject.value] ?? []
+  const map = {}
+  qs.forEach(q => {
+    if (!q.topic) return
+    map[q.topic] = (map[q.topic] ?? 0) + 1
   })
-  return Object.entries(topicMap).map(([id, count]) => ({
-    id,
-    label: id.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-    count
-  }))
+  return Object.entries(map)
+    .sort((a, b) => b[1] - a[1])
+    .map(([id, count]) => ({
+      id,
+      label: id.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+      count,
+    }))
 })
 
-const years = computed(() => {
-  const ys = [...new Set(SAMPLE_QUESTIONS.map(q => q.year))].sort((a, b) => b - a)
-  return ys
+// ── Years from cache for selected subject
+const yearsForSubject = computed(() => {
+  const qs = selectedSubject.value
+    ? (questionsStore.cache[selectedSubject.value] ?? [])
+    : Object.values(questionsStore.cache).flat()
+  return [...new Set(qs.map(q => q.year).filter(Boolean))].sort((a, b) => b - a)
 })
 
 const difficulties = [
@@ -273,21 +304,28 @@ const difficulties = [
   { id: 'hard',   label: 'Hard' },
 ]
 
-const filteredQuestions = computed(() =>
-  SAMPLE_QUESTIONS.filter(q => {
-    if (selectedSubject.value && q.subject !== selectedSubject.value) return false
-    if (selectedTopic.value   && q.topic   !== selectedTopic.value)   return false
-    if (selectedYear.value    && q.year    !== parseInt(selectedYear.value)) return false
-    if (selectedDifficulty.value && q.difficulty !== selectedDifficulty.value) return false
+// ── Filtered count (from cache — preview only, actual fetch happens in ExamView)
+const filteredCount = computed(() => {
+  const qs = questionsStore.cache[selectedSubject.value] ?? []
+  return qs.filter(q => {
+    if (selectedTopic.value && q.topic !== selectedTopic.value)                     return false
+    if (selectedYear.value  && q.year  !== parseInt(selectedYear.value))            return false
+    if (selectedDifficulty.value && q.difficulty !== selectedDifficulty.value)      return false
     return true
-  })
-)
-const filteredCount = computed(() => filteredQuestions.value.length)
+  }).length || (selectedSubject.value ? 40 : 0) // fall back to 40 if online (API will filter)
+})
 
-// ── Mock
+// ── Mock totals
+const QUESTIONS_PER_SUBJECT = EXAM_CONFIGS.mock?.questionsPerSubject ?? 10
 const totalMockQuestions = computed(() =>
-  (userStore.subjects || []).length * EXAM_CONFIGS.mock.questionsPerSubject
+  (userStore.subjects || []).length * QUESTIONS_PER_SUBJECT
 )
+
+const subjectsReadyCount = computed(() =>
+  (userStore.subjects || []).filter(s => (questionsStore.cache[s]?.length ?? 0) > 0).length
+)
+
+const hasAnyCached = computed(() => questionsStore.totalCachedQuestions > 0)
 
 const mockRules = [
   'Answers cannot be changed after submission',
@@ -300,56 +338,35 @@ const recentMocks = computed(() =>
   examStore.history.filter(h => h.type === 'mock').slice(0, 3)
 )
 
-// ── Actions
+// ── Actions — just navigate; ExamView does the fetching via questionsStore
+
 function selectSubject(id) {
   selectedSubject.value = selectedSubject.value === id ? null : id
-  selectedTopic.value = null
+  selectedTopic.value   = null
+  selectedYear.value    = ''
+  selectedDifficulty.value = null
 }
 
 function startPractice() {
   if (!selectedSubject.value) return
-  const questions = filteredQuestions.value.sort(() => Math.random() - 0.5).slice(0, 20)
-  examStore.startSession({
-    type: 'practice',
-    subjects: [selectedSubject.value],
-    questions,
-    timeLimit: null
-  })
-  router.push({ name: 'exam', params: { type: 'practice' } })
+  const query = { subject: selectedSubject.value }
+  if (selectedTopic.value)      query.topic = selectedTopic.value
+  if (selectedYear.value)       query.year  = selectedYear.value
+  // ExamView will call questionsStore.fetchQuestions() with these params
+  router.push({ name: 'exam', params: { type: 'practice' }, query })
 }
 
 function startMock() {
-  const subjects = userStore.subjects.length ? userStore.subjects : ['english', 'mathematics', 'chemistry', 'biology']
-  const questions = subjects.flatMap(subj =>
-    SAMPLE_QUESTIONS
-      .filter(q => q.subject === subj)
-      .sort(() => Math.random() - 0.5)
-      .slice(0, EXAM_CONFIGS.mock.questionsPerSubject)
-  )
-  examStore.startSession({
-    type: 'mock',
-    subjects,
-    questions,
-    timeLimit: EXAM_CONFIGS.mock.timeLimit
-  })
+  // ExamView handles fetching for mock type automatically
   router.push({ name: 'exam', params: { type: 'mock' } })
 }
 
 function startWeakDrill() {
-  const weakSubjects = [...new Set(progressStore.weakTopics.map(w => w.subject))]
-  const questions = progressStore.weakTopics.flatMap(w =>
-    SAMPLE_QUESTIONS
-      .filter(q => q.subject === w.subject && q.topic === w.topic)
-      .sort(() => Math.random() - 0.5)
-      .slice(0, 4)
-  )
-  examStore.startSession({
-    type: 'weak-areas',
-    subjects: weakSubjects,
-    questions: questions.sort(() => Math.random() - 0.5),
-    timeLimit: EXAM_CONFIGS['weak-areas'].timeLimit
-  })
-  router.push({ name: 'exam', params: { type: 'weak-areas' } })
+  const topics = progressStore.weakTopics.slice(0, 6)
+  const query  = topics.length
+    ? { topics: encodeURIComponent(JSON.stringify(topics)) }
+    : {}
+  router.push({ name: 'exam', params: { type: 'weak-areas' }, query })
 }
 
 function formatDate(ts) { return dayjs(ts).format('DD MMM') }
@@ -392,6 +409,16 @@ function formatTopic(t) {
 .tab-content { display: flex; flex-direction: column; gap: 14px; }
 .tab-desc { font-size: 14px; color: var(--muted); line-height: 1.55; }
 
+/* ── OFFLINE NOTE ── */
+.offline-note, .offline-subjects-note {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--muted);
+  background: var(--grey);
+  padding: 10px 14px;
+  border-radius: 10px;
+}
+.warn-text { color: var(--gold-dark); font-weight: 600; }
+
 /* ── SUBJECT GRID ── */
 .subject-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .subj-card {
@@ -407,10 +434,12 @@ function formatTopic(t) {
   gap: 8px;
   box-shadow: var(--shadow);
 }
-.subj-card:hover { border-color: var(--green); transform: translateY(-2px); }
+.subj-card:hover:not(.disabled) { border-color: var(--green); transform: translateY(-2px); }
+.subj-card.disabled { opacity: 0.5; cursor: not-allowed; }
 .subj-icon { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; }
 .subj-name { font-size: 13px; font-weight: 700; color: var(--text); }
 .subj-count { font-size: 11px; color: var(--muted); }
+.subj-count.zero { color: var(--red); font-style: italic; }
 
 /* ── TOPIC SECTION ── */
 .topic-section { background: white; border-radius: 14px; padding: 14px; box-shadow: var(--shadow); }

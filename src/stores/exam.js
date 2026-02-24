@@ -108,16 +108,40 @@ export const useExamStore = defineStore('exam', () => {
   function next() { goTo((session.value?.currentIndex ?? 0) + 1) }
   function prev() { goTo((session.value?.currentIndex ?? 0) - 1) }
 
-  function submit() {
+  async function submit() {
     if (!session.value) return
+
     session.value.status = 'submitted'
+    const submittedAt    = Date.now()
+
     const completed = {
       ...session.value,
-      submittedAt: Date.now(),
-      result: sessionScore.value
+      submittedAt,
+      result: sessionScore.value,
     }
     history.value.unshift(completed)
     if (history.value.length > 50) history.value = history.value.slice(0, 50)
+
+    // ── Enqueue to server sync (works online and offline)
+    const { useSyncStore }    = await import('./sync')
+    const { useNetworkStore } = await import('./network')
+    const syncStore = useSyncStore()
+
+    syncStore.enqueue('session_submit', {
+      session_id:   completed.id,
+      answers:      completed.answers,
+      flagged_ids:  completed.flagged,
+      time_used:    completed.timeLimit
+        ? Math.round((submittedAt - completed.startedAt) / 1000)
+        : null,
+      started_at:   new Date(completed.startedAt).toISOString(),
+      submitted_at: new Date(submittedAt).toISOString(),
+    })
+
+    if (useNetworkStore().isOnline) {
+      syncStore.drainOutbox() // non-blocking — fire and forget
+    }
+
     return completed
   }
 

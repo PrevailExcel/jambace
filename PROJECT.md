@@ -178,7 +178,7 @@ const showExplanation = computed(() => userStore.isPremium)
 ## Getting Started
 
 ```bash
-cd jambace
+cd 2Wise
 npm install
 npm run dev
 

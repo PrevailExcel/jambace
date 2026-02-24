@@ -1,9 +1,9 @@
 {
-  "appId": "ng.jambace.app",
+  "appId": "ng.2Wise.app",
   "appName": "2Wise",
   "webDir": "dist",
   "server": { "androidScheme": "https" },
   "plugins": {
-    "Preferences": { "group": "jambace" }
+    "Preferences": { "group": "2Wise" }
   }
 }

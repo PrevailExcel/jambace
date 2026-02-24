@@ -449,7 +449,7 @@ const xpLevelPct = computed(() => {
 .week-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 .week-range { font-size: 12px; color: var(--muted); }
 .section-title { font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--text); }
-.section-sub   { font-size: 13px; color: var(--muted); margin-top: -10px; margin-bottom: 14px; }
+.section-sub   { font-size: 13px; color: var(--muted); margin-top: 10px; margin-bottom: 14px; }
 
 .week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
 .week-day {

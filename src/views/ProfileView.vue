@@ -105,6 +105,62 @@
         </div>
       </div>
 
+      <!-- ── OFFLINE LIBRARY ── -->
+      <div class="section-card" v-if="userStore.isPremium">
+        <div class="card-header">
+          <h3 class="card-title">Offline Library</h3>
+          <span class="sync-badge" :class="{ 'synced': subjectsDownloaded.length > 0, 'unsynced': subjectsDownloaded.length === 0 }">
+            {{ subjectsDownloaded.length > 0 ? 'Ready' : 'Not synced' }}
+          </span>
+        </div>
+
+        <!-- Downloaded subjects -->
+        <div v-if="totalOfflineQuestions > 0" class="offline-subjects">
+          <div v-for="subject in userStore.subjects" :key="subject" class="offline-subject-row">
+            <div class="os-icon-wrap">
+              <PhCheckCircle v-if="questionsStore.coverageFor(subject)" :size="16" weight="fill" class="os-check" />
+              <PhCloudArrowDown v-else :size="16" weight="regular" class="os-pending" />
+            </div>
+            <span class="os-name">{{ SUBJECT_CONFIG[subject]?.label || subject }}</span>
+            <span class="os-count">
+              {{ questionsStore.coverageFor(subject)?.count?.toLocaleString() ?? '–' }} questions
+            </span>
+          </div>
+          <div class="offline-meta">
+            {{ totalOfflineQuestions.toLocaleString() }} questions total · Last synced {{ lastSyncedAt }}
+          </div>
+        </div>
+        <p v-else class="offline-empty">
+          No questions downloaded yet. Sync now to study anywhere without internet.
+        </p>
+
+        <!-- Download progress bar -->
+        <div v-if="questionsStore.isDownloading" class="download-progress-wrap">
+          <div class="download-bar">
+            <div class="download-fill" :style="{ width: questionsStore.downloadProgress + '%' }"></div>
+          </div>
+          <span class="download-pct">{{ questionsStore.downloadProgress }}%</span>
+        </div>
+
+        <!-- Pending outbox -->
+        <div v-if="pendingSyncCount > 0" class="pending-sync-note">
+          <span>{{ pendingSyncCount }} session{{ pendingSyncCount !== 1 ? 's' : '' }} waiting to sync</span>
+        </div>
+
+        <button
+          class="sync-now-btn"
+          :disabled="!isOnline || syncingNow || questionsStore.isDownloading"
+          @click="syncNow"
+        >
+          <PhArrowsClockwise :size="15" weight="bold" :class="{ spinning: syncingNow || questionsStore.isDownloading }" />
+          {{ syncingNow || questionsStore.isDownloading ? 'Syncing…' : 'Sync Now' }}
+        </button>
+
+        <div v-if="!isOnline" class="offline-note">
+          <PhWifiSlash :size="13" weight="fill" /> You're offline — sync will resume automatically when you reconnect
+        </div>
+      </div>
+
       <!-- ── REFERRAL ── -->
       <div class="referral-card">
         <div class="referral-icon"><PhUsers :size="20" weight="fill" /></div>
@@ -135,7 +191,7 @@
         Log Out
       </button>
 
-      <p class="version-note">2Wise v0.1.0 · Made with ❤️ for Nigerian students</p>
+      <p class="version-note">2Wise v0.1.0</p>
     </div>
 
     <!-- Logout confirmation -->
@@ -161,18 +217,48 @@ import { useRouter } from 'vue-router'
 import {
   PhCrown, PhStar, PhTrophy, PhCalendar, PhTarget, PhBooks,
   PhUsers, PhCaretRight, PhSignOut, PhPencil,
-  PhLightning, PhCheckCircle, PhShieldCheck, PhBell, PhLock
+  PhLightning, PhCheckCircle, PhShieldCheck, PhBell, PhLock,
+  PhCloudArrowDown, PhWifiSlash, PhArrowsClockwise, PhDeviceMobile,
 } from '@phosphor-icons/vue'
-import { useUserStore }     from '@/stores/user'
-import { useProgressStore } from '@/stores/progress'
-import { SUBJECT_CONFIG }   from '@/data/questions'
+import { useUserStore }      from '@/stores/user'
+import { useProgressStore }  from '@/stores/progress'
+import { useQuestionsStore } from '@/stores/questions'
+import { useSyncStore }      from '@/stores/sync'
+import { useNetworkStore }   from '@/stores/network'
+import { useInstallPrompt } from '@/composables/useInstallPrompt'
+import { SUBJECT_CONFIG }    from '@/data/questions'
 import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+dayjs.extend(relativeTime)
 
-const router        = useRouter()
-const userStore     = useUserStore()
+const router          = useRouter()
+const userStore       = useUserStore()
+const questionsStore  = useQuestionsStore()
+const syncStore       = useSyncStore()
+const networkStore    = useNetworkStore()
+const installPrompt   = useInstallPrompt()
 const progressStore = useProgressStore()
 
 const showLogoutConfirm = ref(false)
+const syncingNow        = ref(false)
+
+// ── Offline library
+const totalOfflineQuestions = computed(() => questionsStore.totalCachedQuestions)
+const subjectsDownloaded    = computed(() => questionsStore.subjectsReadyOffline)
+const lastSyncedAt          = computed(() => syncStore.lastSyncedAt
+  ? dayjs(syncStore.lastSyncedAt).fromNow()
+  : 'Never'
+)
+const pendingSyncCount = computed(() => syncStore.pendingCount)
+const isOnline         = computed(() => networkStore.isOnline)
+
+async function syncNow() {
+  if (!networkStore.isOnline || syncingNow.value) return
+  syncingNow.value = true
+  await questionsStore.syncAllSubjects(userStore.subjects)
+  await syncStore.onReconnect()
+  syncingNow.value = false
+}
 
 // ── Avatar
 const initials = computed(() =>
@@ -208,12 +294,24 @@ const allBadges = computed(() => [
 ])
 
 // ── Settings
-const settings = [
-  { label: 'Notifications',   icon: PhBell,        bg: '#E8FFF1', color: 'var(--green)',    action: () => {} },
-  { label: 'Change Password', icon: PhLock,        bg: '#EDE7F6', color: 'var(--purple)',   action: () => {} },
-  { label: 'Premium & Credits', icon: PhCrown,     bg: '#FFF8E1', color: 'var(--gold-dark)', action: () => router.push('/upgrade') },
-  { label: 'Privacy Policy',  icon: PhShieldCheck, bg: '#E3F2FD', color: '#2196F3',         action: () => {} },
-]
+const settings = computed(() => {
+  const base = [
+    { label: 'Notifications',     icon: PhBell,          bg: '#E8FFF1', color: 'var(--green)',     action: () => {} },
+    { label: 'Change Password',   icon: PhLock,          bg: '#EDE7F6', color: 'var(--purple)',    action: () => {} },
+    { label: 'Premium & Credits', icon: PhCrown,         bg: '#FFF8E1', color: 'var(--gold-dark)', action: () => router.push('/upgrade') },
+    { label: 'Privacy Policy',    icon: PhShieldCheck,   bg: '#E3F2FD', color: '#2196F3',          action: () => {} },
+  ]
+  if (!installPrompt.isInstalled.value && (installPrompt.canInstall.value || installPrompt.isIos.value)) {
+    base.push({
+      label: 'Install App',
+      icon:  PhDeviceMobile,
+      bg:    '#E8FFF1',
+      color: 'var(--green)',
+      action: () => installPrompt.triggerBanner(),
+    })
+  }
+  return base
+})
 
 function logout() { showLogoutConfirm.value = true }
 function confirmLogout() {
@@ -389,4 +487,41 @@ function confirmLogout() {
 
 .fade-enter-active { transition: opacity 0.2s; }
 .fade-enter-from   { opacity: 0; }
+/* ── Offline Library ──────────────────────────────────────────────── */
+.card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.card-title  { font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--text); margin: 0; }
+
+.sync-badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+.sync-badge.synced   { background: #E8FFF1; color: var(--green); }
+.sync-badge.unsynced { background: var(--bg); color: var(--muted); }
+
+.offline-subjects { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.offline-subject-row { display: flex; align-items: center; gap: 8px; }
+.os-icon-wrap { width: 20px; display: flex; justify-content: center; }
+.os-check   { color: var(--green); }
+.os-pending { color: var(--muted); }
+.os-name  { flex: 1; font-size: 13.5px; font-weight: 600; color: var(--text); text-transform: capitalize; }
+.os-count { font-size: 12px; color: var(--muted); }
+.offline-meta  { font-size: 11.5px; color: var(--muted); margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--border); }
+.offline-empty { font-size: 13px; color: var(--muted); margin: 0 0 12px; }
+
+.download-progress-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.download-bar  { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.download-fill { height: 100%; background: var(--green); border-radius: 3px; transition: width 0.3s ease; }
+.download-pct  { font-size: 12px; font-weight: 700; color: var(--green); min-width: 36px; text-align: right; }
+
+.pending-sync-note { font-size: 12px; color: var(--muted); background: var(--bg); border-radius: 8px; padding: 8px 12px; margin-bottom: 10px; }
+
+.sync-now-btn {
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 7px;
+  background: var(--navy); color: white; border: none; border-radius: 12px;
+  padding: 12px; font-size: 14px; font-weight: 700; cursor: pointer;
+  transition: opacity 0.2s;
+}
+.sync-now-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.sync-now-btn:not(:disabled):hover { opacity: 0.88; }
+.spinning { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.offline-note { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); margin-top: 8px; }
 </style>

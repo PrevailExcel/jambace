@@ -1,177 +1,242 @@
-// composables/useAiTutor.js
-// Manages a single AI tutor thread anchored to one exam question.
-// Each thread costs 1 credit on open. Messages within the thread are free.
+/**
+ * useAiTutor.js
+ *
+ * Manages a single AI tutor conversation thread anchored to one exam question.
+ *
+ * Offline behaviour:
+ *   - openThread() checks network BEFORE spending any credit.
+ *   - If offline, returns { ok: false, reason: 'offline' } — credit is NOT spent.
+ *   - sendMessage() also checks network; shows a recoverable error if dropped mid-chat.
+ *   - The UI should always show a clear "needs internet" state rather than failing silently.
+ *
+ * Credit flow:
+ *   - 1 credit charged on openThread() — only if online.
+ *   - Unlimited messages within the thread.
+ *   - Credit is deducted locally first (optimistic), then queued to sync to server.
+ */
 
 import { ref, readonly } from 'vue'
-import { useUserStore } from '@/stores/user'
+import { useUserStore }    from '@/stores/user'
+import { useNetworkStore } from '@/stores/network'
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
 export function useAiTutor() {
-  const userStore = useUserStore()
+  const userStore    = useUserStore()
+  const networkStore = useNetworkStore()
 
-  // ── Thread state
-  const messages   = ref([])   // { role: 'user'|'assistant', content: string, id: string }
-  const loading    = ref(false)
-  const error      = ref(null)
-  const threadOpen = ref(false)
-  const creditSpent = ref(false) // track if credit was already charged for this thread
-
-  // ── The question context anchored to this thread
+  // ── Thread state ──────────────────────────────────────────────────────
+  const messages      = ref([])
+  const loading       = ref(false)
+  const error         = ref(null)
+  const threadOpen    = ref(false)
+  const creditSpent   = ref(false)
+  const threadId      = ref(null)   // server thread ID once confirmed online
   const questionContext = ref(null)
-  /*
-    questionContext = {
-      text:          string,  // full question text
-      options:       string[], // the 4 options
-      correctIndex:  number,
-      explanation:   string,
-      subject:       string,
-      topic:         string,
-      year:          number
+
+  // ── Open a thread ─────────────────────────────────────────────────────
+
+  /**
+   * @param  ctx  { id, text, options, correctIndex, explanation, subject, topic, year }
+   * @returns { ok: boolean, reason?: string }
+   */
+  async function openThread(ctx) {
+    error.value = null
+
+    if (!userStore.isPremium) {
+      return { ok: false, reason: 'not_premium' }
     }
-  */
+    if (!userStore.canUseAiTutor) {
+      return { ok: false, reason: 'no_credits' }
+    }
 
-  // ── Open a new thread for a specific question
-  // Returns false if no credits available
-  function openThread(ctx) {
-    if (!userStore.isPremium) return false
+    // ── Hard gate: AI Tutor requires the internet ─────────────────────
+    if (!networkStore.isOnline) {
+      return { ok: false, reason: 'offline' }
+    }
 
-    // Charge credit only once per thread
+    // Charge credit (optimistic local deduct)
     if (!creditSpent.value) {
-      const success = userStore.spendCredit()
-      if (!success) return false
+      const creditType = userStore.spendCredit()
+      if (!creditType) return { ok: false, reason: 'no_credits' }
       creditSpent.value = true
+
+      // Queue credit confirmation to server (non-blocking)
+      confirmCreditOnServer(ctx, creditType).catch(() => {
+        // Enqueue for later if confirmation fails
+        enqueueCreditSync(ctx, creditType)
+      })
     }
 
     questionContext.value = ctx
-    threadOpen.value = true
-    messages.value = []
-    error.value = null
+    threadOpen.value      = true
+    messages.value        = []
 
-    // Seed with a helpful opener so it doesn't feel blank
+    // Seed with opening message so thread never looks empty
     messages.value.push({
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      content: `I'm here to help you understand this question. What would you like to know? You can ask me to explain it differently, give you a similar example, or break down any part of the solution step by step.`
+      id:      crypto.randomUUID(),
+      role:    'assistant',
+      content: seedOpener(ctx),
     })
 
-    return true
+    return { ok: true }
   }
 
-  function closeThread() {
-    threadOpen.value = false
-    // Keep messages — student can re-open and continue. Credit already spent.
+  /** Open thread and immediately request the AI's context-aware opener */
+  async function openThreadWithOpener(ctx) {
+    const result = await openThread(ctx)
+    if (!result.ok) return result
+
+    // Replace static seed with a real AI opener
+    loading.value = true
+    try {
+      const response = await callBackendAi(ctx, [
+        { role: 'user', content: 'Hello, I just answered this question and would like to understand it better.' }
+      ])
+      messages.value = [{ id: crypto.randomUUID(), role: 'assistant', content: response }]
+    } catch (err) {
+      // Keep the static seed — don't surface this error
+    } finally {
+      loading.value = false
+    }
+
+    return { ok: true }
   }
 
-  function resetThread() {
-    threadOpen.value = false
-    messages.value = []
-    creditSpent.value = false
-    questionContext.value = null
-    error.value = null
-  }
+  // ── Send a message ────────────────────────────────────────────────────
 
-  // ── Send a message
   async function sendMessage(userText) {
     if (!userText.trim() || loading.value || !questionContext.value) return
+
+    if (!networkStore.isOnline) {
+      error.value = 'offline'
+      return
+    }
+
     error.value = null
 
-    // Add user message
     messages.value.push({
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: userText.trim()
+      id:      crypto.randomUUID(),
+      role:    'user',
+      content: userText.trim(),
     })
 
     loading.value = true
 
     try {
-      const ctx = questionContext.value
-      const correctOption = ctx.options[ctx.correctIndex]
-
-      // Build the conversation history for the API (exclude our opener)
-      const apiMessages = messages.value
-        .filter(m => !(m.role === 'assistant' && messages.value.indexOf(m) === 0))
+      // Build history (skip the static seed opener if it was never replaced)
+      const history = messages.value
+        .slice(0, -1)  // exclude the message we just pushed (already in messages)
+        .filter(m => m.id !== 'static-seed')
         .map(m => ({ role: m.role, content: m.content }))
 
-      const systemPrompt = buildSystemPrompt(ctx, correctOption)
+      // Add the new user message to history for the API call
+      history.push({ role: 'user', content: userText.trim() })
 
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          system: systemPrompt,
-          messages: apiMessages
-        })
-      })
-
-      if (!response.ok) {
-        const err = await response.json()
-        throw new Error(err.error?.message || 'API error')
-      }
-
-      const data = await response.json()
-      const replyText = data.content
-        .filter(b => b.type === 'text')
-        .map(b => b.text)
-        .join('')
+      const reply = await callBackendAi(questionContext.value, history)
 
       messages.value.push({
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: replyText
+        id:      crypto.randomUUID(),
+        role:    'assistant',
+        content: reply,
       })
-
     } catch (err) {
-      error.value = 'Something went wrong. Please try again.'
-      console.error('AI Tutor error:', err)
+      if (err.message === 'OFFLINE') {
+        error.value = 'offline'
+        // Remove the user message we optimistically added
+        messages.value = messages.value.slice(0, -1)
+      } else {
+        error.value = 'error'
+      }
     } finally {
       loading.value = false
     }
   }
 
-  // ── Build a focused system prompt with full question context
-  function buildSystemPrompt(ctx, correctOption) {
-    return `You are an expert JAMB (Joint Admissions and Matriculation Board) tutor helping a Nigerian student prepare for their university entrance exam. You are warm, encouraging, and highly knowledgeable in all JAMB subjects.
+  // ── Thread lifecycle ──────────────────────────────────────────────────
 
-QUESTION CONTEXT (what the student just answered):
-Subject: ${ctx.subject} — ${ctx.topic}
-Year: JAMB ${ctx.year}
+  function closeThread() { threadOpen.value = false }
 
-Question: ${ctx.text}
+  function resetThread() {
+    threadOpen.value    = false
+    messages.value      = []
+    creditSpent.value   = false
+    questionContext.value = null
+    error.value         = null
+    threadId.value      = null
+  }
 
-Options:
-${ctx.options.map((o, i) => `${['A','B','C','D'][i]}. ${o}`).join('\n')}
+  // ── Backend AI call (routes through our Laravel API, not directly to AI) ──
 
-Correct Answer: ${['A','B','C','D'][ctx.correctIndex]}. ${correctOption}
+  async function callBackendAi(ctx, history) {
+    if (!networkStore.isOnline) throw new Error('OFFLINE')
 
-Official Explanation: ${ctx.explanation}
+    const res = await fetch(`${API_BASE}/ai/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization:  `Bearer ${userStore.token}`,
+      },
+      body: JSON.stringify({
+        question_context: ctx,
+        messages:         history,
+      }),
+    })
 
-YOUR ROLE:
-- Help the student deeply understand this specific question and the underlying concept
-- Answer their follow-up questions clearly with Nigerian curriculum in mind
-- Use simple analogies, worked examples, and step-by-step breakdowns
-- If they ask for another example, give one that is similar but slightly different
-- Keep all explanations relevant to JAMB level and the Nigerian curriculum
-- Be encouraging — many students feel anxious about JAMB
-- If the student asks something completely unrelated to this question or academics, gently bring them back: "Let's stay focused on this topic for now — what else would you like to understand about it?"
-- Never solve or answer a live exam question for a student who mentions they are currently in an exam
-- Keep responses concise but complete — aim for 80–150 words unless a longer explanation is genuinely needed
-- Format with simple line breaks. Do not use markdown headers or bullet points — this is a chat interface`
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.message ?? `HTTP ${res.status}`)
+    }
+
+    const data = await res.json()
+    return data.reply
+  }
+
+  async function confirmCreditOnServer(ctx, creditType) {
+    // Tell server a thread was opened so credits stay in sync
+    const res = await fetch(`${API_BASE}/ai/threads`, {
+      method:  'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization:  `Bearer ${userStore.token}`,
+      },
+      body: JSON.stringify({
+        question_id:     ctx.id,
+        credit_type:     creditType,
+      }),
+    })
+    if (res.ok) {
+      const data = await res.json()
+      threadId.value = data.thread?.id ?? null
+    }
+  }
+
+  async function enqueueCreditSync(ctx, creditType) {
+    const { useSyncStore } = await import('@/stores/sync')
+    useSyncStore().enqueue('credit_spend', {
+      question_id:     ctx.id,
+      credit_type:     creditType,
+      thread_id:       crypto.randomUUID(),
+    })
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────
+
+  function seedOpener(ctx) {
+    return `I'm here to help you understand this ${ctx.subject} question. What would you like to know? I can explain the answer step by step, show you a similar example, or break down the underlying concept.`
   }
 
   return {
-    // State
-    messages:      readonly(messages),
-    loading:       readonly(loading),
-    error:         readonly(error),
-    threadOpen:    readonly(threadOpen),
-    creditSpent:   readonly(creditSpent),
+    messages:        readonly(messages),
+    loading:         readonly(loading),
+    error:           readonly(error),
+    threadOpen:      readonly(threadOpen),
+    creditSpent:     readonly(creditSpent),
     questionContext: readonly(questionContext),
-    // Actions
     openThread,
+    openThreadWithOpener,
     closeThread,
     resetThread,
-    sendMessage
+    sendMessage,
   }
 }

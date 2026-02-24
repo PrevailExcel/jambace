@@ -1,5 +1,30 @@
 <template>
-  <div class="exam-view" v-if="session">
+  <!-- ── Load error screen (offline or API failure) ── -->
+  <div v-if="loadError" class="exam-error-screen">
+    <div class="err-icon">{{ loadError === 'offline_free' ? '🔒' : '📵' }}</div>
+    <h2 v-if="loadError === 'offline_free'">Offline Access is Premium</h2>
+    <h2 v-else-if="loadError === 'offline_no_cache'">Questions Not Downloaded Yet</h2>
+    <h2 v-else>Couldn't Load Questions</h2>
+    <p v-if="loadError === 'offline_free'">
+      You're offline. Upgrade to Premium to study anywhere without internet.
+    </p>
+    <p v-else-if="loadError === 'offline_no_cache'">
+      You're offline and this subject hasn't been downloaded yet. Go online to sync your library first.
+    </p>
+    <p v-else>{{ loadError }}</p>
+    <button class="err-back" @click="smartBack()">Go Back</button>
+    <RouterLink v-if="loadError === 'offline_free'" to="/upgrade" class="err-upgrade">
+      Upgrade to Premium
+    </RouterLink>
+  </div>
+
+  <!-- ── Loading spinner ── -->
+  <div v-else-if="!session" class="exam-loading">
+    <div class="loading-spinner"></div>
+    <p>Loading questions…</p>
+  </div>
+
+  <div v-else class="exam-view">
 
     <!-- ══ TOP BAR ══ -->
     <div class="exam-topbar" :style="{ background: subjectColor }">
@@ -226,11 +251,6 @@
 
   </div>
 
-  <!-- ══ LOADING STATE ══ -->
-  <div v-else class="exam-loading">
-    <div class="loading-spinner"></div>
-    <p>Loading your exam...</p>
-  </div>
 </template>
 
 <script setup>
@@ -253,7 +273,7 @@ import ExplanationPanel   from '@/components/exam/ExplanationPanel.vue'
 import SubmitModal        from '@/components/exam/SubmitModal.vue'
 import FlagQuestionModal  from '@/components/exam/FlagQuestionModal.vue'
 
-import { SAMPLE_QUESTIONS, SUBJECT_CONFIG, EXAM_CONFIGS } from '@/data/questions'
+import { SUBJECT_CONFIG, EXAM_CONFIGS } from '@/data/questions'
 
 // ── Stores & Router
 const route         = useRoute()
@@ -323,6 +343,14 @@ function selectAnswer(optionIndex) {
   }
 }
 
+function smartBack() {
+  if (window.history.length > 1) {
+    router.back()
+  } else {
+    router.push('/home') // fallback
+  }
+}
+
 // ── Submit
 async function submitExam() {
   showSubmitModal.value = false
@@ -385,21 +413,53 @@ function formatTopic(topic) {
   return topic.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
-// ── Init exam on mount (if no active session, start one from sample data)
+// ── Init exam on mount
+const loadError = ref(null)
+
 onMounted(async () => {
   if (!examStore.session) {
-    // In production: fetch from API via questionsStore
-    // For now: use sample questions
-    const subjects = userStore.subjects.length ? userStore.subjects : ['english', 'mathematics', 'chemistry', 'biology']
-    const filtered = SAMPLE_QUESTIONS.filter(q => subjects.includes(q.subject))
-    const shuffled = [...filtered].sort(() => Math.random() - 0.5)
+    const subjects = userStore.subjects.length
+      ? userStore.subjects
+      : ['english', 'mathematics', 'chemistry', 'biology']
 
-    examStore.startSession({
-      type: examType.value,
-      subjects,
-      questions: shuffled,
-      timeLimit: examConfig.value.timeLimit
-    })
+    try {
+      let questions = []
+
+      if (examType.value === 'mock') {
+        questions = await questionsStore.fetchMockExam(subjects)
+      } else if (examType.value === 'weak-areas') {
+        const weak = route.query.topics
+          ? JSON.parse(decodeURIComponent(route.query.topics))
+          : []
+        questions = weak.length
+          ? await questionsStore.fetchWeakAreaQuestions(weak)
+          : await questionsStore.fetchMockExam(subjects)
+      } else {
+        // practice — subject from route query or first subject
+        const subject = route.query.subject || subjects[0]
+        const year    = route.query.year    || undefined
+        const topic   = route.query.topic   || undefined
+        questions = await questionsStore.fetchQuestions({ subject, year, topic, count: 40 })
+      }
+
+      if (!questions.length) throw new Error('No questions found for your selection.')
+
+      examStore.startSession({
+        type: examType.value,
+        subjects,
+        questions,
+        timeLimit: examConfig.value.timeLimit,
+      })
+    } catch (err) {
+      if (err.code === 'OFFLINE_NOT_PREMIUM') {
+        loadError.value = 'offline_free'
+      } else if (err.code === 'OFFLINE_NOT_CACHED') {
+        loadError.value = 'offline_no_cache'
+      } else {
+        loadError.value = err.message || 'Could not load questions. Please try again.'
+      }
+      return
+    }
   }
 
   // Prevent browser back during active exam
@@ -798,6 +858,24 @@ function handlePopState() {
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+.exam-error-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+  text-align: center;
+  gap: 12px;
+  max-width: 480px;
+  margin: 0 auto;
+}
+.err-icon { font-size: 48px; margin-bottom: 4px; }
+.exam-error-screen h2 { font-family: var(--font-display); font-size: 20px; color: var(--text); margin: 0; }
+.exam-error-screen p  { color: var(--muted); font-size: 14px; line-height: 1.5; margin: 0; }
+.err-back    { background: white; border: 1.5px solid var(--border); color: var(--text); border-radius: 12px; padding: 12px 28px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+.err-upgrade { display: block; background: var(--green); color: white; text-decoration: none; border-radius: 12px; padding: 13px 28px; font-weight: 700; margin-top: 4px; }
 
 /* ══ QUESTION TRANSITION ══ */
 .question-slide-enter-active { transition: all 0.22s ease; }

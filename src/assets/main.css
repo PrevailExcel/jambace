@@ -154,3 +154,31 @@ body {
 .subject-biology   { --subject-color: var(--biology-color); }
 .subject-physics   { --subject-color: var(--physics-color); }
 .subject-economics { --subject-color: var(--economics-color); }
+
+/* ── PWA / Safe-area overrides ───────────────────────────────────────── */
+
+/* When running as installed PWA on iOS, status bar is translucent —
+   the app shell needs to extend behind it but keep content clear. */
+@media all and (display-mode: standalone) {
+  /* Bottom nav safe area */
+  .bottom-nav {
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 12px);
+  }
+
+  /* Scroll areas should account for nav + bottom inset */
+  .main-scroll {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Prevent long-press callout on icon images (feels native) */
+img { -webkit-touch-callout: none; }
+
+/* Prevent text selection on UI elements */
+button, .btn, .tab, .nav-item {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Remove tap highlight on iOS */
+* { -webkit-tap-highlight-color: transparent; }

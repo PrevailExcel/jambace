@@ -287,7 +287,7 @@ const challengeLink = ref('')
 const copied = ref(false)
 
 function createChallenge() {
-  challengeLink.value = `https://jambace.app/c/${Math.random().toString(36).substr(2, 8).toUpperCase()}`
+  challengeLink.value = `https://2wise.com.ng/c/${Math.random().toString(36).substr(2, 8).toUpperCase()}`
 }
 
 function copyLink() {

@@ -1,9 +1,20 @@
 <template>
   <div class="tutor-btn-wrap">
 
+    <!-- ── OFFLINE: AI Tutor unavailable ── -->
+    <div v-if="isOffline && isPremium" class="tutor-btn offline-state">
+      <div class="tutor-btn-icon offline">
+        <PhWifiSlash :size="18" weight="fill" />
+      </div>
+      <div class="tutor-btn-text">
+        <strong>AI Tutor unavailable offline</strong>
+        <span>Reconnect to the internet to ask questions</span>
+      </div>
+    </div>
+
     <!-- ── PREMIUM: has credits ── -->
     <button
-      v-if="canUseAiTutor"
+      v-if="canUseAiTutor && !isOffline"
       class="tutor-btn"
       :class="{ active: threadOpen }"
       @click="handleClick"
@@ -20,7 +31,7 @@
 
     <!-- ── PREMIUM: no credits ── -->
     <RouterLink
-      v-else-if="isPremium && !canUseAiTutor"
+      v-else-if="isPremium && !canUseAiTutor && !isOffline"
       to="/upgrade"
       class="tutor-btn out-of-credits"
     >
@@ -51,8 +62,9 @@
 
 <script setup>
 import { computed } from 'vue'
-import { useUserStore } from '@/stores/user'
-import { PhRobot, PhLock, PhCoins, PhCaretRight } from '@phosphor-icons/vue'
+import { useUserStore }    from '@/stores/user'
+import { useNetworkStore } from '@/stores/network'
+import { PhRobot, PhLock, PhCoins, PhCaretRight, PhWifiSlash } from '@phosphor-icons/vue'
 
 const props = defineProps({
   threadOpen: { type: Boolean, default: false }
@@ -61,13 +73,19 @@ const props = defineProps({
 const emit = defineEmits(['open', 'upgrade-prompt'])
 
 const userStore     = useUserStore()
+const networkStore  = useNetworkStore()
 const isPremium     = computed(() => userStore.isPremium)
 const canUseAiTutor = computed(() => userStore.canUseAiTutor)
 const totalCredits  = computed(() => userStore.totalCredits)
+const isOffline     = computed(() => !networkStore.isOnline)
 
 function handleClick() {
+  if (isOffline.value) return // button is shown as disabled; guard anyway
   emit('open')
 }
+
+console.log("This is the end", isOffline.value)
+console.log("This is the end", isOffline)
 </script>
 
 <style scoped>
@@ -113,6 +131,8 @@ function handleClick() {
 
 .tutor-btn-icon.warn { background: rgba(255,184,0,0.15); color: var(--gold); }
 .tutor-btn-icon.lock { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.35); }
+.tutor-btn-icon.offline { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.4); }
+.offline-state { opacity: 0.65; cursor: default; pointer-events: none; }
 
 /* ── Text ── */
 .tutor-btn-text {

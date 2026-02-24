@@ -71,7 +71,7 @@ Refer 5 friends who sign up → account upgrades to Premium automatically. No pa
 ## Folder Structure
 
 ```
-jambace/
+2Wise/
 │
 ├── index.html                      # App entry point
 ├── package.json                    # Dependencies & scripts
@@ -161,8 +161,8 @@ jambace/
 
 ```bash
 # Clone the repo
-git clone https://github.com/your-username/jambace.git
-cd jambace
+git clone https://github.com/your-username/2Wise.git
+cd 2Wise
 
 # Install dependencies
 npm install
@@ -204,7 +204,7 @@ VITE_ANTHROPIC_API_KEY=your_key_here
 VITE_PAYSTACK_PUBLIC_KEY=pk_live_xxxxxxxx
 
 # Backend API
-VITE_API_BASE_URL=https://api.jambace.app/v1
+VITE_API_BASE_URL=https://api.2Wise.app/v1
 ```
 
 > ⚠️ Never commit `.env` to version control. The Anthropic key is already handled by the artifact environment in development — add it to your backend proxy in production.
