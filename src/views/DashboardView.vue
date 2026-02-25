@@ -232,7 +232,7 @@ const leaderboard = computed(() => [
   background: var(--navy);
   border-radius: 22px;
   padding: 22px 20px 20px;
-  margin: 16px 0 14px;
+  margin: 30px 0 14px;
   position: relative;
   overflow: hidden;
 }

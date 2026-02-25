@@ -30,9 +30,9 @@ function loadPaystackScript() {
   if (_scriptPromise) return _scriptPromise
   _scriptPromise = new Promise((resolve, reject) => {
     if (window.PaystackPop) return resolve(window.PaystackPop)
-    const script  = document.createElement('script')
-    script.src    = 'https://js.paystack.co/v2/inline.js'
-    script.async  = true
+    const script = document.createElement('script')
+    script.src = 'https://js.paystack.co/v2/inline.js'
+    script.async = true
     script.onload = () => resolve(window.PaystackPop)
     script.onerror = () => reject(new Error('Failed to load Paystack script'))
     document.head.appendChild(script)
@@ -44,27 +44,25 @@ function loadPaystackScript() {
 export function usePaystack() {
   const userStore = useUserStore()
 
-  const loading   = ref(false)
-  const error     = ref(null)
-  const success   = ref(false)   // true after a successful payment + verify
+  const loading = ref(false)
+  const error = ref(null)
+  const success = ref(false)   // true after a successful payment + verify
 
   // ── Internal: open the popup given an access_code ─────────────────────
-  function openPopup({ accessCode, reference, email, onSuccess, onCancel }) {
+  function openPopup({ accessCode, email, amount, reference }) {
     return new Promise((resolve, reject) => {
-      const handler = window.PaystackPop.newTransaction({
-        key:         import.meta.env.VITE_PAYSTACK_PUBLIC_KEY,
-        accessCode,
+      const paystack = new window.PaystackPop()
+
+      paystack.newTransaction({
+        key: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY,
+        access_code: accessCode,
+        amount,
+        reference,
         email,
-        onSuccess(transaction) {
-          resolve(transaction)
-          if (onSuccess) onSuccess(transaction)
-        },
-        onCancel() {
-          reject(new Error('PAYMENT_CANCELLED'))
-          if (onCancel) onCancel()
-        },
+
+        onSuccess: (transaction) => resolve(transaction),
+        onCancel: () => reject(new Error('PAYMENT_CANCELLED')),
       })
-      handler.openIframe()
     })
   }
 
@@ -73,7 +71,7 @@ export function usePaystack() {
     const res = await fetch(`${API}/payments/verify/${reference}`, {
       headers: {
         'Authorization': `Bearer ${userStore.token}`,
-        'Content-Type':  'application/json',
+        'Content-Type': 'application/json',
       },
     })
 
@@ -97,7 +95,7 @@ export function usePaystack() {
   // ── subscribe() ───────────────────────────────────────────────────────
   // Opens the ₦1,000/year subscription popup.
   async function subscribe() {
-    error.value   = null
+    error.value = null
     success.value = false
     loading.value = true
 
@@ -106,10 +104,10 @@ export function usePaystack() {
 
       // 1. Initialise with our backend
       const initRes = await fetch(`${API}/payments/subscribe`, {
-        method:  'POST',
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${userStore.token}`,
-          'Content-Type':  'application/json',
+          'Content-Type': 'application/json',
         },
       })
 
@@ -118,12 +116,13 @@ export function usePaystack() {
         throw new Error(body.message ?? `Server error ${initRes.status}`)
       }
 
-      const { access_code, reference } = await initRes.json()
+      const { access_code, reference, amount_kobo } = await initRes.json()
 
       // 2. Open popup — suspends here until paid or cancelled
       await openPopup({
         accessCode: access_code,
         reference,
+        amount: amount_kobo,
         email: userStore.profile?.email,
       })
 
@@ -146,7 +145,7 @@ export function usePaystack() {
   // ── buyCredits() ──────────────────────────────────────────────────────
   // Opens a credit pack purchase popup.
   async function buyCredits(packId) {
-    error.value   = null
+    error.value = null
     success.value = false
     loading.value = true
 
@@ -155,10 +154,10 @@ export function usePaystack() {
 
       // 1. Initialise credit pack purchase with our backend
       const initRes = await fetch(`${API}/payments/credits`, {
-        method:  'POST',
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${userStore.token}`,
-          'Content-Type':  'application/json',
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({ pack_id: packId }),
       })

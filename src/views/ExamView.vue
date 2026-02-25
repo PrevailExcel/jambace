@@ -315,8 +315,7 @@ async function submitExam() {
       progressStore.updateSubjectStat(subject, topic, correct, total)
     })
   }
-
-  window.removeEventListener('popstate', handlePopState) // ✅ stop blocking back
+  
   router.replace({ name: 'results', params: { sessionId: result.id } })
 }
 
@@ -341,6 +340,7 @@ function onTimeExpired() {
 
 // ── Exit
 function confirmExit() { showExitConfirm.value = true }
+
 function exitExam() {
   examStore.clearSession()
   router.replace({ name: 'practice' })
