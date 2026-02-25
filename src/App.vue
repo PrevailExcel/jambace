@@ -24,10 +24,14 @@
     </Transition>
 
     <!-- ── Router view ── -->
-    <RouterView v-slot="{ Component, route }">
+    <!-- <RouterView v-slot="{ Component, route }">
       <Transition :name="route.meta.transition || 'fade'" mode="out-in">
         <component :is="Component" :key="route.path" />
       </Transition>
+    </RouterView> -->
+
+    <RouterView v-slot="{ Component, route }">
+      <component :is="Component" :key="route.path" />
     </RouterView>
 
     <!-- ── PWA: install prompt + update toast ── -->
@@ -39,14 +43,14 @@
 <script setup>
 import { computed, onMounted } from 'vue'
 import { PhWifiSlash } from '@phosphor-icons/vue'
-import { useUserStore }    from '@/stores/user'
+import { useUserStore } from '@/stores/user'
 import { useNetworkStore } from '@/stores/network'
-import { useSyncStore }    from '@/stores/sync'
+import { useSyncStore } from '@/stores/sync'
 import InstallBanner from '@/components/InstallBanner.vue'
 
-const userStore    = useUserStore()
+const userStore = useUserStore()
 const networkStore = useNetworkStore()
-const syncStore    = useSyncStore()
+const syncStore = useSyncStore()
 
 const showOfflineBanner = computed(
   () => !networkStore.isOnline && networkStore.wasOffline
@@ -54,7 +58,7 @@ const showOfflineBanner = computed(
 
 const showSyncBanner = computed(
   () => networkStore.isOnline &&
-        (syncStore.isSyncing || syncStore.hasPending || syncStore.failedCount > 0)
+    (syncStore.isSyncing || syncStore.hasPending || syncStore.failedCount > 0)
 )
 
 function retry() {
@@ -76,10 +80,10 @@ onMounted(() => {
 <style>
 /* ── Safe area insets — critical for iPhone notch / Dynamic Island ── */
 :root {
-  --safe-top:    env(safe-area-inset-top,    0px);
+  --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --safe-left:   env(safe-area-inset-left,   0px);
-  --safe-right:  env(safe-area-inset-right,  0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
 }
 
 #jambace-app {
@@ -104,12 +108,20 @@ onMounted(() => {
   font-weight: 500;
 }
 
-.offline-bar { background: var(--navy, #0A0F2C); color: rgba(255,255,255,0.82); }
-.sync-bar    { background: var(--green, #00C853); color: white; }
+.offline-bar {
+  background: var(--navy, #0A0F2C);
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.sync-bar {
+  background: var(--green, #00C853);
+  color: white;
+}
 
 .sync-spinner {
-  width: 11px; height: 11px;
-  border: 2px solid rgba(255,255,255,0.35);
+  width: 11px;
+  height: 11px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
   border-top-color: white;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
@@ -117,7 +129,7 @@ onMounted(() => {
 }
 
 .bar-retry {
-  background: rgba(255,255,255,0.25);
+  background: rgba(255, 255, 255, 0.25);
   border: none;
   color: white;
   font-weight: 700;
@@ -129,13 +141,30 @@ onMounted(() => {
 }
 
 /* ── Transitions ── */
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 .slide-down-enter-active,
-.slide-down-leave-active { transition: transform 0.22s ease, opacity 0.22s ease; }
-.slide-down-enter-from,
-.slide-down-leave-to     { transform: translateY(-100%); opacity: 0; }
+.slide-down-leave-active {
+  transition: transform 0.22s ease, opacity 0.22s ease;
+}
 
-.fade-enter-active, .fade-leave-active { transition: opacity 0.18s ease; }
-.fade-enter-from,   .fade-leave-to     { opacity: 0; }
+.slide-down-enter-from,
+.slide-down-leave-to {
+  transform: translateY(-100%);
+  opacity: 0;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.18s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
 </style>
