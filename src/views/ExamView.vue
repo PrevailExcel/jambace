@@ -480,8 +480,10 @@ onUnmounted(() => {
 })
 
 function handlePopState() {
-  history.pushState(null, '', location.href)
-  confirmExit()
+  if (examStore.session?.status === 'active') {
+    history.pushState(null, '', location.href)
+    confirmExit()
+  }
 }
 </script>
 

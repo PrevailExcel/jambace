@@ -293,5 +293,5 @@ export const useQuestionsStore = defineStore('questions', () => {
   }
 }, {
   // Only persist coverage (metadata) — cache is persisted manually via saveCache/loadCache
-  persist: { paths: ['coverage'] },
+  persist: { enabled: true },
 })

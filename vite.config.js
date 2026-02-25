@@ -20,9 +20,9 @@ export default defineConfig({
 
       // ── Web App Manifest ─────────────────────────────────────────
       manifest: {
-        name: '2Wise — JAMB Prep',
+        name: "2Wise — JAMB Prep",
         short_name: '2Wise',
-        description: 'The smartest JAMB prep app in Nigeria. Study smarter, score higher.',
+        description: "The smartest JAMB prep app in Nigeria. Study smarter, score higher.",
         theme_color: '#0A0F2C',
         background_color: '#0A0F2C',
         display: 'standalone',
@@ -103,7 +103,7 @@ export default defineConfig({
           // POST/PUT/DELETE are NOT cached — they go through our outbox system
           {
             urlPattern: ({ request, url }) =>
-              (url.pathname.startsWith('/api/') || url.hostname === 'api.2Wise.ng') &&
+              (url.pathname.startsWith('/api/') || url.hostname === 'api.2wise.com.ng') &&
               request.method === 'GET',
             handler: 'NetworkFirst',
             options: {
