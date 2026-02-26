@@ -215,10 +215,13 @@ const subjectConfig = SUBJECT_CONFIG
 
 const reviewQuestion = ref(null)
 
-// ── Find the session from history
+// ── Find the session
+// Check the active (just-submitted) session first — it's guaranteed in memory
+// right after submit. Only fall back to history for viewing past results.
 const session = computed(() => {
   const id = route.params.sessionId
-  return examStore.history.find(h => h.id === id) || examStore.history[0] || null
+  if (examStore.session?.id === id) return examStore.session
+  return examStore.history.find(h => h.id === id) ?? null
 })
 
 const result = computed(() => session.value?.result || { correct: 0, wrong: 0, unanswered: 0, total: 0, bySubject: {} })

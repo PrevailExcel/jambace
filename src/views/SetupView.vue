@@ -148,11 +148,17 @@ import {
   PhBooks, PhCalendar, PhTrophy, PhLock, PhTimer, PhRocketLaunch,
   PhAtom, PhDna, PhCalculator, PhGlobe, PhBank, PhBookOpen, PhMegaphone
 } from '@phosphor-icons/vue'
-import { useUserStore } from '@/stores/user'
+import { useUserStore }      from '@/stores/user'
+import { useSyncStore }      from '@/stores/sync'
+import { useNetworkStore }   from '@/stores/network'
 import dayjs from 'dayjs'
 
-const router    = useRouter()
-const userStore = useUserStore()
+const API = import.meta.env.VITE_API_BASE_URL ?? '/api'
+
+const router          = useRouter()
+const userStore       = useUserStore()
+const syncStore       = useSyncStore()
+const networkStore    = useNetworkStore()
 
 const step              = ref(1)
 const selectedSubjects  = ref(['english'])
@@ -201,18 +207,48 @@ function toggleSubject(s) {
   }
 }
 
-function advance() {
+async function advance() {
   if (!canProceed.value) return
   if (step.value < 3) {
     step.value++
-  } else {
-    userStore.updateExamSetup({
-      date:  examDate.value,
-      score: parseInt(targetScore.value),
-      subs:  selectedSubjects.value
-    })
-    router.replace({ name: 'dashboard' })
+    return
   }
+
+  // Save locally immediately
+  userStore.updateExamSetup({
+    date:  examDate.value,
+    score: parseInt(targetScore.value),
+    subs:  selectedSubjects.value,
+  })
+
+  // Persist to server (non-blocking — don't block navigation on network failure)
+  if (networkStore.isOnline && userStore.token) {
+    fetch(`${API}/auth/setup`, {
+      method:  'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization:  `Bearer ${userStore.token}`,
+      },
+      body: JSON.stringify({
+        subjects:     selectedSubjects.value,
+        exam_date:    examDate.value,
+        target_score: parseInt(targetScore.value),
+      }),
+    }).catch(() => {
+      // Queue for later — setup data is already saved locally
+      syncStore.enqueue('exam_setup', {
+        subjects:     selectedSubjects.value,
+        exam_date:    examDate.value,
+        target_score: parseInt(targetScore.value),
+      })
+    })
+
+  }
+
+  // Start background cache warm-up for the subjects just selected
+  const { useQuestionsStore } = await import('@/stores/questions')
+  useQuestionsStore().warmCache(selectedSubjects.value)
+  router.replace({ name: 'dashboard' })
 }
 </script>
 

@@ -24,10 +24,14 @@
 
         <p class="tab-desc">Choose a subject and topic to drill specific areas.</p>
 
-        <!-- Offline / no-cache note -->
-        <div v-if="!networkStore.isOnline && !hasAnyCached" class="offline-note">
+        <!-- Status notes -->
+        <div v-if="questionsStore.isWarming" class="warming-note">
+          <div class="warming-spinner"></div>
+          Downloading questions for offline use…
+        </div>
+        <div v-else-if="!networkStore.isOnline && !hasAnyCached" class="offline-note">
           <PhWifiSlash :size="14" weight="fill" />
-          You're offline. Download questions while online to practise offline.
+          You're offline and no questions are downloaded yet. Go online to continue.
         </div>
 
         <div class="subject-grid">
@@ -35,16 +39,16 @@
             v-for="subj in availableSubjects"
             :key="subj.id"
             class="subj-card"
-            :class="{ selected: selectedSubject === subj.id, disabled: subj.count === 0 }"
+            :class="{ selected: selectedSubject === subj.id, disabled: !subj.available }"
             :style="selectedSubject === subj.id ? { borderColor: subj.color, background: subj.bg } : {}"
-            @click="subj.count > 0 && selectSubject(subj.id)"
+            @click="subj.available && selectSubject(subj.id)"
           >
             <div class="subj-icon" :style="{ background: subj.bg }">
               <component :is="subj.icon" :size="24" weight="fill" :style="{ color: subj.color }" />
             </div>
             <span class="subj-name">{{ subj.label }}</span>
-            <span class="subj-count" :class="{ zero: subj.count === 0 }">
-              {{ subj.count > 0 ? subj.count + ' Qs' : 'Not downloaded' }}
+            <span class="subj-count" :class="{ zero: !subj.available, online: subj.available && subj.count === 0 }">
+              {{ subj.countLabel }}
             </span>
           </div>
         </div>
@@ -255,15 +259,23 @@ const subjectIcons = {
   economics: PhBank, government: PhGlobe
 }
 
-// ── Subjects — count from cache, not SAMPLE_QUESTIONS
+// ── Subjects
 const availableSubjects = computed(() =>
   (userStore.subjects || []).map(id => {
-    const cached = questionsStore.cache[id] ?? []
+    const cached    = questionsStore.cache[id] ?? []
+    const available = questionsStore.isSubjectAvailable(id)
     return {
       id,
       ...SUBJECT_CONFIG[id],
-      icon:  subjectIcons[id] || PhBooks,
-      count: cached.length,
+      icon:      subjectIcons[id] || PhBooks,
+      count:     cached.length,
+      available,
+      // Label shown under subject name
+      countLabel: !available
+        ? 'Not downloaded'
+        : cached.length > 0
+          ? cached.length + ' Qs'
+          : networkStore.isOnline ? 'Online ✓' : 'Not downloaded',
     }
   })
 )
@@ -304,15 +316,31 @@ const difficulties = [
   { id: 'hard',   label: 'Hard' },
 ]
 
-// ── Filtered count (from cache — preview only, actual fetch happens in ExamView)
+// ── Filtered count
+// When online: always show 40+ (API will serve even if not cached yet).
+// When offline: count from cache with filters applied.
 const filteredCount = computed(() => {
+  if (!selectedSubject.value) return 0
+  if (networkStore.isOnline) {
+    // If we have cache, filter it for a precise preview; otherwise just say 40
+    const qs = questionsStore.cache[selectedSubject.value] ?? []
+    if (!qs.length) return 40
+    const filtered = qs.filter(q => {
+      if (selectedTopic.value      && q.topic      !== selectedTopic.value)             return false
+      if (selectedYear.value       && q.year       !== parseInt(selectedYear.value))    return false
+      if (selectedDifficulty.value && q.difficulty !== selectedDifficulty.value)        return false
+      return true
+    })
+    return filtered.length || 40  // API can always serve some; 40 is a safe floor
+  }
+  // Offline — only what's in cache
   const qs = questionsStore.cache[selectedSubject.value] ?? []
   return qs.filter(q => {
-    if (selectedTopic.value && q.topic !== selectedTopic.value)                     return false
-    if (selectedYear.value  && q.year  !== parseInt(selectedYear.value))            return false
-    if (selectedDifficulty.value && q.difficulty !== selectedDifficulty.value)      return false
+    if (selectedTopic.value      && q.topic      !== selectedTopic.value)             return false
+    if (selectedYear.value       && q.year       !== parseInt(selectedYear.value))    return false
+    if (selectedDifficulty.value && q.difficulty !== selectedDifficulty.value)        return false
     return true
-  }).length || (selectedSubject.value ? 40 : 0) // fall back to 40 if online (API will filter)
+  }).length
 })
 
 // ── Mock totals
@@ -409,6 +437,25 @@ function formatTopic(t) {
 .tab-content { display: flex; flex-direction: column; gap: 14px; }
 .tab-desc { font-size: 14px; color: var(--muted); line-height: 1.55; }
 
+/* ── STATUS NOTES ── */
+.warming-note {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; color: var(--green-dark);
+  background: var(--green-soft);
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+.warming-spinner {
+  width: 14px; height: 14px;
+  border: 2px solid rgba(0,200,83,0.3);
+  border-top-color: var(--green);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
 /* ── OFFLINE NOTE ── */
 .offline-note, .offline-subjects-note {
   display: flex; align-items: center; gap: 8px;
@@ -439,7 +486,8 @@ function formatTopic(t) {
 .subj-icon { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; }
 .subj-name { font-size: 13px; font-weight: 700; color: var(--text); }
 .subj-count { font-size: 11px; color: var(--muted); }
-.subj-count.zero { color: var(--red); font-style: italic; }
+.subj-count.zero   { color: var(--red); font-style: italic; }
+.subj-count.online { color: var(--green-dark); font-weight: 600; }
 
 /* ── TOPIC SECTION ── */
 .topic-section { background: white; border-radius: 14px; padding: 14px; box-shadow: var(--shadow); }

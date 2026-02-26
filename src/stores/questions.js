@@ -1,49 +1,39 @@
 /**
  * questions.js — Question Store
  *
- * Offline strategy:
- *   - Premium/trial users: proactive bulk download of all their subjects via
- *     GET /api/sync/questions. Stored per-subject in `cache`.
- *   - On fetch: serve from cache if offline, fetch from API if online (and merge).
- *   - Coverage map tracks which subjects are downloaded so the UI can show
- *     "English — 847 questions, last synced 2h ago".
+ * Strategy: offline-first with online sync.
  *
- * Persistence:
- *   `coverage` (metadata only) → pinia persist → plain localStorage. Safe.
- *   `cache`    (question data) → manual async   → AES-256-GCM encrypted localStorage.
+ *   Online  → fetch from API → serve immediately → grow cache in background
+ *   Offline → serve from cache (plain pinia persist, no encryption)
  *
- *   WHY MANUAL?
- *   pinia-plugin-persistedstate v3 does not support async storage — it calls
- *   getItem/setItem synchronously and ignores returned Promises. An async
- *   storage shim silently breaks hydration: cache always comes back {}.
- *   So we manage cache persistence ourselves: loadCacheFromDisk() on first
- *   access, saveCacheToDisk() after every write.
+ * Cache warm-up: after login, warmCache(subjects) silently pre-fetches all of
+ * the user's subjects so that offline use works immediately — no manual sync.
+ *
+ * PracticeView reads `isSubjectAvailable(subject)` — true if online OR cached.
+ * The "Not downloaded" state only shows when genuinely offline with no cache.
  */
 
-import { defineStore }      from 'pinia'
-import { ref, computed }    from 'vue'
-import { useNetworkStore }  from './network'
-import { useUserStore }     from './user'
-import { saveCache, loadCache } from '@/lib/secureStorage'
-import { initEncryption, hasEncryptionKey } from '@/lib/crypto'
+import { defineStore }     from 'pinia'
+import { ref, computed }   from 'vue'
+import { useNetworkStore } from './network'
+import { useUserStore }    from './user'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
 export const useQuestionsStore = defineStore('questions', () => {
+
   // ── State ────────────────────────────────────────────────────────────────
 
-  /** { [subject]: Question[] } — in memory; persisted manually via saveCache/loadCache */
-  const cache = ref({})
+  /**
+   * cache: { [subject]: Question[] }
+   * Persisted as plain JSON. Used only when offline.
+   * Updated silently after every successful online fetch.
+   */
+  const cache    = ref({})
+  const coverage = ref({})   // { [subject]: { cachedAt: ISO, count: number } }
 
-  /** { [subject]: { downloadedAt: ISO, count: number } } — persisted by pinia (plain) */
-  const coverage = ref({})
-
-  const loading          = ref(false)
-  const downloadProgress = ref(0)
-  const isDownloading    = ref(false)
-
-  // Guard: have we loaded the encrypted cache from disk this session?
-  let _diskLoadPromise = null
+  const loading   = ref(false)
+  const isWarming = ref(false)   // true while background warm-up is running
 
   // ── Getters ──────────────────────────────────────────────────────────────
 
@@ -55,40 +45,19 @@ export const useQuestionsStore = defineStore('questions', () => {
     Object.values(cache.value).reduce((sum, qs) => sum + (qs?.length ?? 0), 0)
   )
 
+  /**
+   * True if the subject can be started right now.
+   * Online: always true — API will serve questions.
+   * Offline: only true if we have cached questions.
+   */
+  function isSubjectAvailable(subject) {
+    const networkStore = useNetworkStore()
+    if (networkStore.isOnline) return true
+    return (cache.value[subject]?.length ?? 0) > 0
+  }
+
   function coverageFor(subject) {
     return coverage.value[subject] ?? null
-  }
-
-  // ── Disk I/O ─────────────────────────────────────────────────────────────
-
-  /**
-   * Ensure the encryption key is ready, then load the encrypted cache from
-   * localStorage into `cache`. Idempotent — only runs once per session.
-   */
-  async function ensureCacheLoaded() {
-    if (_diskLoadPromise) return _diskLoadPromise
-
-    _diskLoadPromise = (async () => {
-      const userStore = useUserStore()
-      if (!userStore.token) return   // not logged in — nothing to load
-
-      // Derive AES key if it hasn't been derived yet (e.g. very fast page load)
-      if (!hasEncryptionKey()) {
-        await initEncryption(userStore.token)
-      }
-
-      const loaded = await loadCache()
-      if (loaded && Object.keys(loaded).length > 0) {
-        cache.value = loaded
-      }
-    })()
-
-    return _diskLoadPromise
-  }
-
-  /** Encrypt and persist the current cache to localStorage. */
-  async function persistCache() {
-    await saveCache(cache.value)
   }
 
   // ── Fetch (single subject / filtered) ────────────────────────────────────
@@ -97,37 +66,31 @@ export const useQuestionsStore = defineStore('questions', () => {
     const networkStore = useNetworkStore()
     const userStore    = useUserStore()
 
-    // Always ensure the encrypted cache is loaded before serving from it
-    await ensureCacheLoaded()
-
-    // ── Offline path ──────────────────────────────────────────────────────
+    // ── Offline: serve from cache ─────────────────────────────────────────
     if (!networkStore.isOnline) {
-      if (!userStore.isPremium) {
-        throw Object.assign(new Error('OFFLINE_NOT_PREMIUM'), { code: 'OFFLINE_NOT_PREMIUM' })
-      }
       const cached = cache.value[subject]
       if (!cached?.length) {
-        throw Object.assign(new Error('OFFLINE_NOT_CACHED'), { code: 'OFFLINE_NOT_CACHED' })
+        throw Object.assign(
+          new Error('No cached questions for this subject. Connect to the internet and try again.'),
+          { code: 'OFFLINE_NOT_CACHED' }
+        )
       }
       return filterAndReturn(cached, { year, topic, count, shuffle })
     }
 
-    // ── Online path ───────────────────────────────────────────────────────
+    // ── Online: fetch from API ────────────────────────────────────────────
     loading.value = true
     try {
       const params = new URLSearchParams({ subject, count })
       if (year)  params.set('year',  year)
       if (topic) params.set('topic', topic)
 
-      const res = await apiFetch(`/questions?${params}`, userStore.token)
-      const { questions } = await res.json()
+      const res       = await apiFetch(`/questions?${params}`, userStore.token)
+      const body = await res.json()
+      const questions = transformQuestions(body.questions ?? body)
 
-      // Merge into in-memory cache (premium users only)
-      if (userStore.isPremium) {
-        mergeIntoCache(subject, questions)
-        // Persist the updated cache — non-blocking
-        persistCache()
-      }
+      // Update cache silently for offline use later — don't await, don't block
+      updateCache(subject, questions)
 
       return shuffleIfNeeded(questions, shuffle)
     } finally {
@@ -152,65 +115,72 @@ export const useQuestionsStore = defineStore('questions', () => {
     return all.flat()
   }
 
-  // ── Bulk Download (proactive offline prep) ────────────────────────────────
+  // ── Cache management ──────────────────────────────────────────────────────
 
-  async function syncAllSubjects(subjects) {
-    const networkStore = useNetworkStore()
-    const userStore    = useUserStore()
+  /**
+   * Merge new questions into the cache for a subject.
+   * Runs synchronously — no awaiting, no encryption, no side effects.
+   */
+  function updateCache(subject, incoming) {
+    const existing    = cache.value[subject] ?? []
+    const existingIds = new Set(existing.map(q => q.id))
+    const merged      = [...existing, ...incoming.filter(q => !existingIds.has(q.id))]
 
-    if (!networkStore.isOnline) return { ok: false, reason: 'offline' }
-    if (!userStore.isPremium)   return { ok: false, reason: 'not_premium' }
-    if (isDownloading.value)    return { ok: false, reason: 'already_downloading' }
+    // Replace the whole ref key — avoids partial mutation during render
+    cache.value = { ...cache.value, [subject]: merged }
 
-    // Make sure the encryption key is ready before we write to disk
-    if (!hasEncryptionKey() && userStore.token) {
-      await initEncryption(userStore.token)
+    coverage.value = {
+      ...coverage.value,
+      [subject]: { cachedAt: new Date().toISOString(), count: merged.length },
     }
+  }
 
-    isDownloading.value    = true
-    downloadProgress.value = 0
+  function clearCache() {
+    cache.value    = {}
+    coverage.value = {}
+  }
 
-    const total = subjects.length
-    let done    = 0
+  // ── Background cache warm-up ─────────────────────────────────────────────
 
+  /**
+   * Silently pre-fetch all of the user's subjects after login.
+   * One subject at a time, 300ms apart — polite to the server.
+   * Safe to call multiple times: skips subjects already cached.
+   * Non-blocking — callers do NOT await this.
+   */
+  async function warmCache(subjects = []) {
+    const networkStore = useNetworkStore()
+    if (!networkStore.isOnline || isWarming.value) return
+    if (!subjects.length) return
+
+    isWarming.value = true
     try {
       for (const subject of subjects) {
-        const res = await apiFetch(
-          `/sync/questions?subject=${subject}`,
-          userStore.token
-        )
-        const { questions } = await res.json()
+        if (!networkStore.isOnline) break  // went offline mid-warm — stop
 
-        cache.value[subject] = questions
-        coverage.value[subject] = {
-          downloadedAt: new Date().toISOString(),
-          count: questions.length,
+        // Skip if already cached (e.g. user came back online, cache is fresh)
+        const existing = cache.value[subject]
+        if (existing?.length >= 40) {
+          continue
         }
 
-        done++
-        downloadProgress.value = Math.round((done / total) * 100)
-      }
-
-      // Persist the complete cache to encrypted localStorage once all subjects done
-      await persistCache()
-
-      return { ok: true, total: totalCachedQuestions.value }
-    } catch (err) {
-      // Save whatever we downloaded before the error hit
-      if (done > 0) await persistCache()
-
-      if (err.status === 429) {
-        return {
-          ok:            false,
-          reason:        'rate_limited',
-          message:       err.message ?? 'Daily download limit reached. Try again tomorrow.',
-          savedSubjects: done,
+        try {
+          // Fetch a full page quietly — same transform pipeline
+          const userStore = useUserStore()
+          const params    = new URLSearchParams({ subject, count: 60 })
+          const res       = await apiFetch(`/questions?${params}`, userStore.token)
+          const body      = await res.json()
+          const questions = transformQuestions(body.questions ?? body)
+          if (questions.length) updateCache(subject, questions)
+        } catch {
+          // Ignore per-subject errors — don't abort the whole warm-up
         }
+
+        // Brief pause between subjects — avoid hammering the API
+        await new Promise(r => setTimeout(r, 300))
       }
-      return { ok: false, reason: err.message }
     } finally {
-      isDownloading.value    = false
-      downloadProgress.value = 0
+      isWarming.value = false
     }
   }
 
@@ -224,32 +194,38 @@ export const useQuestionsStore = defineStore('questions', () => {
       await apiFetch(`/questions/${questionId}/flag`, userStore.token, {
         method: 'POST',
         body:   JSON.stringify({ reason, note }),
-      })
+      }).catch(() => {}) // fire and forget
     } else {
       const { useSyncStore } = await import('./sync')
       useSyncStore().enqueue('question_flag', { question_id: questionId, reason, note })
     }
   }
 
-  // ── Cache helpers ─────────────────────────────────────────────────────────
+  // ── API response transformation ──────────────────────────────────────────
 
-  function mergeIntoCache(subject, incoming) {
-    const existing    = cache.value[subject] ?? []
-    const existingIds = new Set(existing.map(q => q.id))
-    const merged      = [...existing, ...incoming.filter(q => !existingIds.has(q.id))]
-    cache.value[subject] = merged
-    coverage.value[subject] = {
-      downloadedAt: new Date().toISOString(),
-      count: merged.length,
+  /**
+   * The API returns snake_case field names (correct_index, image_path).
+   * The entire frontend uses camelCase. Transform once here so every
+   * downstream consumer (ExamView, ResultsView, ExplanationPanel) works
+   * without knowing about the API's naming convention.
+   */
+  function transformQuestion(q) {
+    return {
+      ...q,
+      correctIndex: q.correct_index  ?? q.correctIndex  ?? 0,
+      imagePath:    q.image_path     ?? q.imagePath     ?? null,
+      // Ensure options is always a plain array (API may return object or array)
+      options: Array.isArray(q.options)
+        ? q.options
+        : Object.values(q.options ?? {}),
     }
   }
 
-  async function clearCache() {
-    cache.value    = {}
-    coverage.value = {}
-    _diskLoadPromise = null
-    // The encrypted blob on disk will be wiped by clearSecureCache() on logout
+  function transformQuestions(arr) {
+    return (arr ?? []).map(transformQuestion)
   }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
 
   function filterAndReturn(questions, { year, topic, count, shuffle }) {
     let q = [...questions]
@@ -275,23 +251,25 @@ export const useQuestionsStore = defineStore('questions', () => {
     })
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
-      const err  = Object.assign(
+      throw Object.assign(
         new Error(body.message ?? `HTTP ${res.status}`),
         { status: res.status, body }
       )
-      throw err
     }
     return res
   }
 
   return {
-    cache, coverage, loading, downloadProgress, isDownloading,
+    cache, coverage, loading, isWarming,
     subjectsReadyOffline, totalCachedQuestions, coverageFor,
+    isSubjectAvailable,
     fetchQuestions, fetchMockExam, fetchWeakAreaQuestions,
-    syncAllSubjects, flagQuestion, clearCache,
-    ensureCacheLoaded,   // exposed so main.js can warm it on boot
+    warmCache, flagQuestion, clearCache,
   }
+
 }, {
-  // Only persist coverage (metadata) — cache is persisted manually via saveCache/loadCache
-  persist: { enabled: true },
+  persist: {
+    paths: ['cache', 'coverage'],
+    // Plain localStorage — no encryption, no async, no bugs
+  },
 })

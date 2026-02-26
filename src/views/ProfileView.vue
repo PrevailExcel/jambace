@@ -114,8 +114,16 @@
           </span>
         </div>
 
+        <!-- Warming progress indicator -->
+        <div v-if="questionsStore.isWarming" class="warming-bar-wrap">
+          <div class="warming-bar-label">
+            <div class="warming-dot"></div>
+            Downloading questions for offline use…
+          </div>
+        </div>
+
         <!-- Downloaded subjects -->
-        <div v-if="totalOfflineQuestions > 0" class="offline-subjects">
+        <div class="offline-subjects">
           <div v-for="subject in userStore.subjects" :key="subject" class="offline-subject-row">
             <div class="os-icon-wrap">
               <PhCheckCircle v-if="questionsStore.coverageFor(subject)" :size="16" weight="fill" class="os-check" />
@@ -123,23 +131,14 @@
             </div>
             <span class="os-name">{{ SUBJECT_CONFIG[subject]?.label || subject }}</span>
             <span class="os-count">
-              {{ questionsStore.coverageFor(subject)?.count?.toLocaleString() ?? '–' }} questions
+              {{ questionsStore.coverageFor(subject)
+                ? questionsStore.coverageFor(subject).count.toLocaleString() + ' Qs'
+                : isOnline ? 'Will download soon' : 'Not downloaded' }}
             </span>
           </div>
-          <div class="offline-meta">
-            {{ totalOfflineQuestions.toLocaleString() }} questions total · Last synced {{ lastSyncedAt }}
+          <div v-if="totalOfflineQuestions > 0" class="offline-meta">
+            {{ totalOfflineQuestions.toLocaleString() }} questions cached · Last synced {{ lastSyncedAt }}
           </div>
-        </div>
-        <p v-else class="offline-empty">
-          No questions downloaded yet. Sync now to study anywhere without internet.
-        </p>
-
-        <!-- Download progress bar -->
-        <div v-if="questionsStore.isDownloading" class="download-progress-wrap">
-          <div class="download-bar">
-            <div class="download-fill" :style="{ width: questionsStore.downloadProgress + '%' }"></div>
-          </div>
-          <span class="download-pct">{{ questionsStore.downloadProgress }}%</span>
         </div>
 
         <!-- Pending outbox -->
@@ -149,15 +148,15 @@
 
         <button
           class="sync-now-btn"
-          :disabled="!isOnline || syncingNow || questionsStore.isDownloading"
+          :disabled="!isOnline || syncingNow || questionsStore.isWarming"
           @click="syncNow"
         >
-          <PhArrowsClockwise :size="15" weight="bold" :class="{ spinning: syncingNow || questionsStore.isDownloading }" />
-          {{ syncingNow || questionsStore.isDownloading ? 'Syncing…' : 'Sync Now' }}
+          <PhArrowsClockwise :size="15" weight="bold" :class="{ spinning: syncingNow || questionsStore.isWarming }" />
+          {{ questionsStore.isWarming ? 'Downloading…' : syncingNow ? 'Syncing…' : 'Re-download Questions' }}
         </button>
 
         <div v-if="!isOnline" class="offline-note">
-          <PhWifiSlash :size="13" weight="fill" /> You're offline — sync will resume automatically when you reconnect
+          <PhWifiSlash :size="13" weight="fill" /> You're offline — questions will download automatically when you reconnect
         </div>
       </div>
 
@@ -255,8 +254,9 @@ const isOnline         = computed(() => networkStore.isOnline)
 async function syncNow() {
   if (!networkStore.isOnline || syncingNow.value) return
   syncingNow.value = true
-  await questionsStore.syncAllSubjects(userStore.subjects)
+  // Drain outbox then re-download all subjects fresh
   await syncStore.onReconnect()
+  questionsStore.warmCache(userStore.subjects)  // non-blocking
   syncingNow.value = false
 }
 

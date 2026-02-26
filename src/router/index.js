@@ -56,10 +56,10 @@ const routes = [
         meta: { tab: 'plan' }
       },
       {
-        path: '/community',
-        name: 'community',
-        component: () => import('@/views/CommunityView.vue'),
-        meta: { tab: 'community' }
+        path: '/library',
+        name: 'library',
+        component: () => import('@/views/LibraryView.vue'),
+        meta: { tab: 'library' }
       },
       {
         path: '/profile',

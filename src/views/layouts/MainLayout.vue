@@ -50,7 +50,8 @@ import {
   PhCalendarCheck,
   PhUsers,
   PhUser,
-  PhWifiSlash
+  PhWifiSlash,
+  PhBookOpen
 } from '@phosphor-icons/vue'
 
 const route = useRoute()
@@ -61,7 +62,8 @@ const navItems = [
   { tab: 'home',      to: '/home',      label: 'Home',      icon: PhHouse },
   { tab: 'practice',  to: '/practice',  label: 'Practice',  icon: PhLightning },
   { tab: 'plan',      to: '/plan',      label: 'Plan',      icon: PhCalendarCheck },
-  { tab: 'community', to: '/community', label: 'Community', icon: PhUsers },
+  // { tab: 'community', to: '/community', label: 'Community', icon: PhUsers },
+  { tab: 'library',   to: '/library',   label: 'Library',   icon: PhBookOpen},
   { tab: 'profile',   to: '/profile',   label: 'Profile',   icon: PhUser },
 ]
 

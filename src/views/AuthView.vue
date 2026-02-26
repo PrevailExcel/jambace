@@ -161,8 +161,8 @@ import {
   PhGift, PhWarning
 } from '@phosphor-icons/vue'
 import { useUserStore }     from '@/stores/user'
-import { useSyncStore }     from '@/stores/sync'
-import { useQuestionsStore } from '@/stores/questions'
+import { useSyncStore }        from '@/stores/sync'
+import { useQuestionsStore }   from '@/stores/questions'
 
 const API = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
@@ -170,7 +170,6 @@ const router          = useRouter()
 const route           = useRoute()
 const userStore       = useUserStore()
 const syncStore       = useSyncStore()
-const questionsStore  = useQuestionsStore()
 
 const mode         = ref('signup')
 const showPassword = ref(false)
@@ -228,10 +227,10 @@ async function googleAuth() {
 }
 
 function afterLogin() {
-  // Pull server state and pre-download questions — both non-blocking
   syncStore.bootstrapFromServer()
-  if (userStore.isPremium && userStore.subjects.length) {
-    questionsStore.syncAllSubjects(userStore.subjects)
+  // Silently pre-fetch all subjects for offline use — non-blocking
+  if (userStore.subjects.length) {
+    questionsStore.warmCache(userStore.subjects)
   }
 }
 

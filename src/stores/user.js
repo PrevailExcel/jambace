@@ -1,8 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import dayjs from 'dayjs'
-import { initEncryption, clearEncryptionKey } from '@/lib/crypto'
-import { clearSecureCache }                   from '@/lib/secureStorage'
 
 export const CREDIT_PACKS = [
   { id: 'pack_50',  credits: 50,  price: 200,  label: '50 Credits',  tag: null },
@@ -101,9 +99,6 @@ export const useUserStore = defineStore('user', () => {
     purchasedCredits.value = data.credits?.purchased ?? 0
     lastCreditReset.value  = data.credits?.reset_month ?? dayjs().format('YYYY-MM')
 
-    // Initialise the in-memory AES key derived from this token.
-    // Non-blocking — questions won't be read until after navigation settles.
-    if (data.token) initEncryption(data.token)
   }
 
   /**
@@ -192,10 +187,8 @@ export const useUserStore = defineStore('user', () => {
     monthlyCredits.value     = 0
     purchasedCredits.value   = 0
 
-    // Wipe the in-memory AES key and delete all encrypted question data.
-    // After this, localStorage contains no usable question content.
-    clearEncryptionKey()
-    clearSecureCache()
+    // Question cache is plain JSON — pinia persist clears on next hydration
+    // Call questionsStore.clearCache() from the logout UI if you want immediate wipe
   }
 
   function checkSession() {

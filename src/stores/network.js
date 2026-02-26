@@ -21,9 +21,19 @@ export const useNetworkStore = defineStore('network', () => {
     reconnectedAt.value = Date.now()
 
     // Dynamic import avoids circular dependency at module load time
-    const { useSyncStore } = await import('./sync')
+    const { useSyncStore }      = await import('./sync')
+    const { useQuestionsStore } = await import('./questions')
+    const { useUserStore }      = await import('./user')
+
+    // Drain outbox first, then warm the question cache
     const syncStore = useSyncStore()
     await syncStore.onReconnect()
+
+    const userStore      = useUserStore()
+    const questionsStore = useQuestionsStore()
+    if (userStore.isLoggedIn && userStore.subjects.length) {
+      questionsStore.warmCache(userStore.subjects)  // non-blocking
+    }
   }
 
   function destroy() {
