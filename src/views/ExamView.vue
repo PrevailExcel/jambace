@@ -45,8 +45,14 @@
           <PhSeal :size="13" weight="fill" />
           Verified
         </div>
-        <ExamTimer v-if="session.timeLimit" ref="timerRef" :totalSeconds="session.timeLimit"
-          :running="!showSubmitModal && !showFlagModal" @warning="onTimerWarning" @expired="onTimeExpired" />
+        <ExamTimer
+          v-if="session.timeLimit"
+          ref="timerRef"
+          :totalSeconds="session.timeLimit"
+          :running="!showSubmitModal && !showFlagModal"
+          @warning="onTimerWarning"
+          @expired="onTimeExpired"
+        />
         <div v-else class="no-timer-badge">
           <PhInfinity :size="16" weight="bold" />
         </div>
@@ -55,7 +61,10 @@
 
     <!-- ══ PROGRESS BAR ══ -->
     <div class="exam-progress-track">
-      <div class="exam-progress-fill" :style="{ width: `${progressPct}%`, background: subjectColor }"></div>
+      <div
+        class="exam-progress-fill"
+        :style="{ width: `${progressPct}%`, background: subjectColor }"
+      ></div>
     </div>
 
     <!-- ══ QUESTION META ══ -->
@@ -68,20 +77,32 @@
 
         <div class="q-meta-actions">
           <!-- Calculator -->
-          <button class="meta-btn calc-btn-trigger" @click="showCalculator = true" title="Calculator">
+          <button
+            class="meta-btn calc-btn-trigger"
+            @click="showCalculator = true"
+            title="Calculator"
+          >
             <PhCalculator :size="16" weight="regular" />
             Calc
           </button>
 
           <!-- Flag toggle -->
-          <button class="meta-btn flag-btn" :class="{ flagged: isFlagged(currentQuestion?.id) }"
-            @click="showFlagModal = true" title="Report an issue">
+          <button
+            class="meta-btn flag-btn"
+            :class="{ flagged: isFlagged(currentQuestion?.id) }"
+            @click="showFlagModal = true"
+            title="Report an issue"
+          >
             <PhFlag :size="16" :weight="isFlagged(currentQuestion?.id) ? 'fill' : 'regular'" />
             {{ isFlagged(currentQuestion?.id) ? 'Flagged' : 'Flag' }}
           </button>
 
           <!-- Explanation (practice mode) -->
-          <button v-if="isPracticeMode && hasAnswered" class="meta-btn explain-btn" @click="showExplanation = true">
+          <button
+            v-if="isPracticeMode && hasAnswered"
+            class="meta-btn explain-btn"
+            @click="showExplanation = true"
+          >
             <PhLightbulb :size="16" weight="fill" />
             Explain
           </button>
@@ -93,8 +114,7 @@
         <div class="question-card" :key="currentQuestion?.id">
           <!-- Image (if any) -->
           <div v-if="currentQuestion?.imagePath" class="q-image-wrap">
-            <img :src="currentQuestion.imagePath" :alt="`Question ${session.currentIndex + 1} diagram`"
-              class="q-image" />
+            <img :src="currentQuestion.imagePath" :alt="`Question ${session.currentIndex + 1} diagram`" class="q-image" />
           </div>
 
           <!-- Text -->
@@ -116,31 +136,55 @@
       <!-- ══ OPTIONS ══ -->
       <Transition name="question-slide" mode="out-in">
         <div class="options-list" :key="`opts-${currentQuestion?.id}`">
-          <OptionItem v-for="(option, i) in currentQuestion?.options" :key="i" :index="i" :text="option"
-            :selected="session.answers[currentQuestion?.id] === i" :isCorrect="i === currentQuestion?.correctIndex"
-            :showResult="isPracticeMode && hasAnswered" :disabled="isPracticeMode && hasAnswered"
-            @select="selectAnswer" />
+          <OptionItem
+            v-for="(option, i) in currentQuestion?.options"
+            :key="i"
+            :index="i"
+            :text="option"
+            :selected="session.answers[currentQuestion?.id] === i"
+            :isCorrect="i === currentQuestion?.correctIndex"
+            :showResult="isPracticeMode && hasAnswered"
+            :disabled="isPracticeMode && hasAnswered"
+            @select="selectAnswer"
+          />
         </div>
       </Transition>
 
       <!-- ══ QUESTION NAVIGATOR ══ -->
-      <QuestionNavigator :questions="session.questions" :answers="session.answers" :flagged="session.flagged"
-        :currentIndex="session.currentIndex" :subjects="session.subjects" @goto="goTo" />
+      <QuestionNavigator
+        :questions="session.questions"
+        :answers="session.answers"
+        :flagged="session.flagged"
+        :currentIndex="session.currentIndex"
+        :subjects="session.subjects"
+        @goto="goTo"
+      />
 
       <!-- ══ NAV BUTTONS ══ -->
       <div class="exam-nav-btns">
-        <button class="nav-btn prev-btn" :disabled="session.currentIndex === 0" @click="prev">
+        <button
+          class="nav-btn prev-btn"
+          :disabled="session.currentIndex === 0"
+          @click="prev"
+        >
           <PhArrowLeft :size="18" weight="bold" />
           Prev
         </button>
 
         <!-- Submit (last question) or Next -->
-        <button v-if="session.currentIndex === totalQuestions - 1" class="nav-btn submit-btn"
-          @click="showSubmitModal = true">
+        <button
+          v-if="session.currentIndex === totalQuestions - 1"
+          class="nav-btn submit-btn"
+          @click="showSubmitModal = true"
+        >
           <PhPaperPlaneTilt :size="18" weight="fill" />
           Submit Exam
         </button>
-        <button v-else class="nav-btn next-btn" @click="next">
+        <button
+          v-else
+          class="nav-btn next-btn"
+          @click="next"
+        >
           Next
           <PhArrowRight :size="18" weight="bold" />
         </button>
@@ -156,22 +200,43 @@
     </div>
 
     <!-- ══ MODALS & PANELS ══ -->
-    <SubmitModal :visible="showSubmitModal" :answeredCount="answeredCount" :flaggedCount="flaggedCount"
-      :totalQuestions="totalQuestions" @confirm="submitExam" @cancel="showSubmitModal = false" />
+    <SubmitModal
+      :visible="showSubmitModal"
+      :answeredCount="answeredCount"
+      :flaggedCount="flaggedCount"
+      :totalQuestions="totalQuestions"
+      @confirm="submitExam"
+      @cancel="showSubmitModal = false"
+    />
 
-    <CalculatorModal :visible="showCalculator" @close="showCalculator = false" />
+    <CalculatorModal
+      :visible="showCalculator"
+      @close="showCalculator = false"
+    />
 
-    <FlagQuestionModal :visible="showFlagModal" :questionId="currentQuestion?.id" @confirm="handleFlag"
-      @cancel="showFlagModal = false" />
+    <FlagQuestionModal
+      :visible="showFlagModal"
+      :questionId="currentQuestion?.id"
+      @confirm="handleFlag"
+      @cancel="showFlagModal = false"
+    />
 
-    <ExplanationPanel :visible="showExplanation" :explanation="currentQuestion?.explanation"
+    <ExplanationPanel
+      :visible="showExplanation"
+      :explanation="currentQuestion?.explanation"
       :correctIndex="currentQuestion?.correctIndex"
       :correctOption="currentQuestion?.options[currentQuestion?.correctIndex]"
-      :locked="!userStore.isPremium && !userStore.isInTrial" @close="showExplanation = false" />
+      :locked="!userStore.isPremium && !userStore.isInTrial"
+      @close="showExplanation = false"
+    />
 
     <!-- Overlay when panel is open -->
     <Transition name="fade">
-      <div v-if="showExplanation" class="panel-overlay" @click="showExplanation = false"></div>
+      <div
+        v-if="showExplanation"
+        class="panel-overlay"
+        @click="showExplanation = false"
+      ></div>
     </Transition>
 
     <!-- ══ TOAST NOTIFICATIONS ══ -->
@@ -193,7 +258,7 @@
           <p>Your progress will be lost. This exam will not be saved.</p>
           <div class="modal-actions">
             <button class="btn-cancel" @click="stayInExam">Stay</button>
-            <button class="btn-exit" @click="exitExam">Exit</button>
+            <button class="btn-exit"   @click="exitExam">Exit</button>
           </div>
         </div>
       </div>
@@ -211,47 +276,47 @@ import {
   PhPaperPlaneTilt, PhSeal, PhInfinity, PhSignOut
 } from '@phosphor-icons/vue'
 
-import { useExamStore } from '@/stores/exam'
-import { useUserStore } from '@/stores/user'
+import { useExamStore }     from '@/stores/exam'
+import { useUserStore }     from '@/stores/user'
 import { useProgressStore } from '@/stores/progress'
 import { useQuestionsStore } from '@/stores/questions'
 
-import ExamTimer from '@/components/exam/ExamTimer.vue'
-import OptionItem from '@/components/exam/OptionItem.vue'
-import QuestionNavigator from '@/components/exam/QuestionNavigator.vue'
-import ExplanationPanel from '@/components/exam/ExplanationPanel.vue'
-import SubmitModal from '@/components/exam/SubmitModal.vue'
-import FlagQuestionModal from '@/components/exam/FlagQuestionModal.vue'
-import CalculatorModal from '@/components/exam/CalculatorModal.vue'
+import ExamTimer          from '@/components/exam/ExamTimer.vue'
+import OptionItem         from '@/components/exam/OptionItem.vue'
+import QuestionNavigator  from '@/components/exam/QuestionNavigator.vue'
+import ExplanationPanel   from '@/components/exam/ExplanationPanel.vue'
+import SubmitModal        from '@/components/exam/SubmitModal.vue'
+import FlagQuestionModal  from '@/components/exam/FlagQuestionModal.vue'
+import CalculatorModal    from '@/components/exam/CalculatorModal.vue'
 
 import { SUBJECT_CONFIG, EXAM_CONFIGS } from '@/data/questions'
 
 // ── Stores & Router
-const route = useRoute()
-const router = useRouter()
-const examStore = useExamStore()
-const userStore = useUserStore()
+const route         = useRoute()
+const router        = useRouter()
+const examStore     = useExamStore()
+const userStore     = useUserStore()
 const progressStore = useProgressStore()
 const questionsStore = useQuestionsStore()
 
 // ── UI State
-const showSubmitModal = ref(false)
-const showFlagModal = ref(false)
-const showCalculator = ref(false)
-const showExplanation = ref(false)
-const showExitConfirm = ref(false)
-const isExamActive = ref(false)   // set true once exam loads; lets route guard know
-const timerRef = ref(null)
+const showSubmitModal  = ref(false)
+const showFlagModal    = ref(false)
+const showCalculator   = ref(false)
+const showExplanation  = ref(false)
+const showExitConfirm  = ref(false)
+const isExamActive     = ref(false)   // set true once exam loads; lets route guard know
+const timerRef         = ref(null)
 
 const toast = ref({ visible: false, message: '', type: 'info', icon: null })
 
 // ── Computed from store
-const session = computed(() => examStore.session)
+const session       = computed(() => examStore.session)
 const totalQuestions = computed(() => examStore.totalQuestions)
-const answeredCount = computed(() => examStore.answeredCount)
-const flaggedCount = computed(() => examStore.flaggedCount)
+const answeredCount  = computed(() => examStore.answeredCount)
+const flaggedCount   = computed(() => examStore.flaggedCount)
 const currentQuestion = computed(() => examStore.currentQuestion)
-const isFlagged = computed(() => examStore.isFlagged)
+const isFlagged       = computed(() => examStore.isFlagged)
 
 const progressPct = computed(() =>
   totalQuestions.value > 0
@@ -259,9 +324,9 @@ const progressPct = computed(() =>
     : 0
 )
 
-const examType = computed(() => route.params.type || 'mock')
-const examConfig = computed(() => EXAM_CONFIGS[examType.value] || EXAM_CONFIGS.mock)
-const examLabel = computed(() => examConfig.value.label)
+const examType    = computed(() => route.params.type || 'mock')
+const examConfig  = computed(() => EXAM_CONFIGS[examType.value] || EXAM_CONFIGS.mock)
+const examLabel   = computed(() => examConfig.value.label)
 
 const isPracticeMode = computed(() => examType.value === 'practice')
 
@@ -280,9 +345,9 @@ const subjectColor = computed(() => {
 })
 
 // ── Navigation
-function next() { examStore.next(); hideExplanation() }
-function prev() { examStore.prev(); hideExplanation() }
-function goTo(index) { examStore.goTo(index); hideExplanation() }
+function next()       { examStore.next();  hideExplanation() }
+function prev()       { examStore.prev();  hideExplanation() }
+function goTo(index)  { examStore.goTo(index); hideExplanation() }
 function hideExplanation() { showExplanation.value = false }
 
 // ── Answering
@@ -299,11 +364,31 @@ function selectAnswer(optionIndex) {
 // ── Submit
 async function submitExam() {
   showSubmitModal.value = false
+
   const result = await examStore.submit()
-  progressStore.recordSession(result)
+
+  // ── Compute score and total immediately
+  let score = 0
+  const total = result.questions?.length || 0
+
+  if (result.questions && result.answers) {
+    result.questions.forEach(q => {
+      if (result.answers[q.id] === q.correctIndex) score++
+    })
+  }
+
+  // Create a plain object to avoid Proxy issues
+  const sessionResult = {
+    ...result,
+    score,
+    total,
+  }
+
+  // Record the session for weekly trends
+  await progressStore.recordSession(sessionResult)
 
   // Update subject stats
-  if (result?.questions) {
+  if (result.questions) {
     const byTopic = {}
     result.questions.forEach(q => {
       const key = `${q.subject}|${q.topic}`
@@ -316,10 +401,13 @@ async function submitExam() {
     })
   }
 
+  //save the session in session for resilt view. Delete after 5 minutes to prevent stale data
+  sessionStorage.setItem('latestSession', JSON.stringify(sessionResult))
+
+  // Navigate to results WITHOUT storing the reactive Proxy in history.state
   router.replace({
     name: 'results',
-    params: { sessionId: result.id },
-    state: { session: result }
+    params: { sessionId: result.id }
   })
 }
 
@@ -334,7 +422,7 @@ async function handleFlag({ questionId, reason, note }) {
 // ── Timer events
 function onTimerWarning(secondsLeft) {
   if (secondsLeft === 300) showToast('5 minutes remaining!', 'warning')
-  if (secondsLeft === 60) showToast('1 minute remaining!', 'danger')
+  if (secondsLeft === 60)  showToast('1 minute remaining!', 'danger')
 }
 
 function onTimeExpired() {
@@ -414,8 +502,8 @@ onMounted(async () => {
       } else {
         // practice — subject from route query or first subject
         const subject = route.query.subject || subjects[0]
-        const year = route.query.year || undefined
-        const topic = route.query.topic || undefined
+        const year    = route.query.year    || undefined
+        const topic   = route.query.topic   || undefined
         questions = await questionsStore.fetchQuestions({ subject, year, topic, count: 40 })
       }
 
@@ -491,10 +579,9 @@ onBeforeRouteLeave((_to, _from, next) => {
 }
 
 .topbar-back {
-  width: 36px;
-  height: 36px;
+  width: 36px; height: 36px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255,255,255,0.15);
   color: white;
   display: flex;
   align-items: center;
@@ -504,24 +591,16 @@ onBeforeRouteLeave((_to, _from, next) => {
   flex-shrink: 0;
   transition: background 0.2s;
 }
+.topbar-back:hover { background: rgba(255,255,255,0.25); }
 
-.topbar-back:hover {
-  background: rgba(255, 255, 255, 0.25);
-}
-
-.topbar-info {
-  display: flex;
-  flex-direction: column;
-}
-
+.topbar-info { display: flex; flex-direction: column; }
 .topbar-type {
   font-size: 10.5px;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255,255,255,0.6);
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
-
 .topbar-subject {
   font-family: var(--font-display);
   font-size: 15px;
@@ -539,7 +618,7 @@ onBeforeRouteLeave((_to, _from, next) => {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255,255,255,0.2);
   color: white;
   font-size: 11px;
   font-weight: 600;
@@ -550,7 +629,7 @@ onBeforeRouteLeave((_to, _from, next) => {
 .no-timer-badge {
   display: inline-flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255,255,255,0.15);
   color: white;
   padding: 7px 10px;
   border-radius: 20px;
@@ -559,12 +638,11 @@ onBeforeRouteLeave((_to, _from, next) => {
 /* ══ PROGRESS ══ */
 .exam-progress-track {
   height: 4px;
-  background: rgba(0, 0, 0, 0.08);
+  background: rgba(0,0,0,0.08);
   position: sticky;
   top: 64px;
   z-index: 49;
 }
-
 .exam-progress-fill {
   height: 100%;
   transition: width 0.4s ease;
@@ -591,18 +669,9 @@ onBeforeRouteLeave((_to, _from, next) => {
   font-size: 13px;
   color: var(--muted);
 }
+.q-count strong { font-family: var(--font-display); font-size: 18px; color: var(--text); font-weight: 800; }
 
-.q-count strong {
-  font-family: var(--font-display);
-  font-size: 18px;
-  color: var(--text);
-  font-weight: 800;
-}
-
-.q-meta-actions {
-  display: flex;
-  gap: 8px;
-}
+.q-meta-actions { display: flex; gap: 8px; }
 
 .meta-btn {
   display: inline-flex;
@@ -620,33 +689,17 @@ onBeforeRouteLeave((_to, _from, next) => {
   color: var(--muted);
 }
 
-.flag-btn:hover,
-.flag-btn.flagged {
+.flag-btn:hover, .flag-btn.flagged {
   border-color: var(--gold);
   background: var(--gold-soft);
   color: var(--gold-dark);
 }
 
-.explain-btn {
-  color: var(--navy);
-  border-color: var(--navy-light);
-}
+.explain-btn { color: var(--navy); border-color: var(--navy-light); }
+.explain-btn:hover { background: var(--navy); color: white; }
 
-.explain-btn:hover {
-  background: var(--navy);
-  color: white;
-}
-
-.calc-btn-trigger {
-  color: var(--teal, #00897B);
-  border-color: rgba(0, 137, 123, 0.3);
-}
-
-.calc-btn-trigger:hover {
-  background: var(--teal, #00897B);
-  color: white;
-  border-color: var(--teal, #00897B);
-}
+.calc-btn-trigger { color: var(--teal, #00897B); border-color: rgba(0,137,123,0.3); }
+.calc-btn-trigger:hover { background: var(--teal, #00897B); color: white; border-color: var(--teal, #00897B); }
 
 /* ══ QUESTION CARD ══ */
 .question-card {
@@ -656,10 +709,7 @@ onBeforeRouteLeave((_to, _from, next) => {
   box-shadow: var(--shadow);
 }
 
-.q-image-wrap {
-  margin-bottom: 14px;
-}
-
+.q-image-wrap { margin-bottom: 14px; }
 .q-image {
   width: 100%;
   border-radius: 10px;
@@ -689,38 +739,14 @@ onBeforeRouteLeave((_to, _from, next) => {
   border-radius: 20px;
   text-transform: capitalize;
 }
-
-.q-chip.year {
-  background: var(--grey);
-  color: var(--muted);
-}
-
-.q-chip.topic {
-  background: var(--green-soft);
-  color: var(--green-dark);
-}
-
-.q-chip.difficulty.easy {
-  background: #E8FFF1;
-  color: var(--green-dark);
-}
-
-.q-chip.difficulty.medium {
-  background: #FFF8E1;
-  color: var(--gold-dark);
-}
-
-.q-chip.difficulty.hard {
-  background: var(--red-soft);
-  color: var(--red);
-}
+.q-chip.year   { background: var(--grey); color: var(--muted); }
+.q-chip.topic  { background: var(--green-soft); color: var(--green-dark); }
+.q-chip.difficulty.easy   { background: #E8FFF1; color: var(--green-dark); }
+.q-chip.difficulty.medium { background: #FFF8E1; color: var(--gold-dark); }
+.q-chip.difficulty.hard   { background: var(--red-soft); color: var(--red); }
 
 /* ══ OPTIONS ══ */
-.options-list {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-}
+.options-list { display: flex; flex-direction: column; gap: 9px; }
 
 /* ══ NAV BUTTONS ══ */
 .exam-nav-btns {
@@ -750,45 +776,27 @@ onBeforeRouteLeave((_to, _from, next) => {
   color: var(--text);
   border: 1.5px solid var(--border);
 }
-
-.prev-btn:hover:not(:disabled) {
-  background: var(--grey);
-}
-
-.prev-btn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
+.prev-btn:hover:not(:disabled) { background: var(--grey); }
+.prev-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
 .next-btn {
   flex: 2;
   background: var(--navy);
   color: white;
-  box-shadow: 0 4px 16px rgba(10, 15, 44, 0.25);
+  box-shadow: 0 4px 16px rgba(10,15,44,0.25);
 }
-
-.next-btn:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
-}
+.next-btn:hover { opacity: 0.9; transform: translateY(-1px); }
 
 .submit-btn {
   flex: 2;
   background: var(--green);
   color: white;
-  box-shadow: 0 4px 16px rgba(0, 200, 83, 0.35);
+  box-shadow: 0 4px 16px rgba(0,200,83,0.35);
 }
-
-.submit-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 200, 83, 0.4);
-}
+.submit-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,200,83,0.4); }
 
 /* ══ SUBMIT EARLY ══ */
-.submit-early {
-  text-align: center;
-}
-
+.submit-early { text-align: center; }
 .submit-early-btn {
   display: inline-flex;
   align-items: center;
@@ -803,17 +811,13 @@ onBeforeRouteLeave((_to, _from, next) => {
   cursor: pointer;
   transition: all 0.2s;
 }
-
-.submit-early-btn:hover {
-  color: var(--green);
-  border-color: var(--green);
-}
+.submit-early-btn:hover { color: var(--green); border-color: var(--green); }
 
 /* ══ PANEL OVERLAY ══ */
 .panel-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(10, 15, 44, 0.4);
+  background: rgba(10,15,44,0.4);
   z-index: 190;
 }
 
@@ -834,50 +838,21 @@ onBeforeRouteLeave((_to, _from, next) => {
   white-space: nowrap;
   box-shadow: var(--shadow-md);
 }
+.toast.success { background: var(--navy); color: white; }
+.toast.warning { background: var(--gold); color: var(--navy); }
+.toast.danger  { background: var(--red);  color: white; }
+.toast.info    { background: var(--navy); color: white; }
 
-.toast.success {
-  background: var(--navy);
-  color: white;
-}
-
-.toast.warning {
-  background: var(--gold);
-  color: var(--navy);
-}
-
-.toast.danger {
-  background: var(--red);
-  color: white;
-}
-
-.toast.info {
-  background: var(--navy);
-  color: white;
-}
-
-.toast-enter-active {
-  transition: all 0.3s cubic-bezier(0.34, 1.2, 0.64, 1);
-}
-
-.toast-leave-active {
-  transition: all 0.2s ease;
-}
-
-.toast-enter-from {
-  opacity: 0;
-  transform: translateX(-50%) translateY(-14px);
-}
-
-.toast-leave-to {
-  opacity: 0;
-  transform: translateX(-50%) translateY(-8px);
-}
+.toast-enter-active { transition: all 0.3s cubic-bezier(0.34,1.2,0.64,1); }
+.toast-leave-active { transition: all 0.2s ease; }
+.toast-enter-from   { opacity: 0; transform: translateX(-50%) translateY(-14px); }
+.toast-leave-to     { opacity: 0; transform: translateX(-50%) translateY(-8px); }
 
 /* ══ EXIT MODAL ══ */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(10, 15, 44, 0.6);
+  background: rgba(10,15,44,0.6);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -896,8 +871,7 @@ onBeforeRouteLeave((_to, _from, next) => {
 }
 
 .exit-icon {
-  width: 56px;
-  height: 56px;
+  width: 56px; height: 56px;
   border-radius: 16px;
   background: var(--red-soft);
   color: var(--red);
@@ -913,18 +887,9 @@ onBeforeRouteLeave((_to, _from, next) => {
   font-weight: 800;
   margin-bottom: 8px;
 }
+.exit-modal p { font-size: 13.5px; color: var(--muted); margin-bottom: 22px; line-height: 1.5; }
 
-.exit-modal p {
-  font-size: 13.5px;
-  color: var(--muted);
-  margin-bottom: 22px;
-  line-height: 1.5;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 10px;
-}
+.modal-actions { display: flex; gap: 10px; }
 
 .btn-cancel {
   flex: 1;
@@ -937,7 +902,6 @@ onBeforeRouteLeave((_to, _from, next) => {
   cursor: pointer;
   color: var(--text);
 }
-
 .btn-exit {
   flex: 1;
   padding: 13px;
@@ -962,19 +926,14 @@ onBeforeRouteLeave((_to, _from, next) => {
 }
 
 .loading-spinner {
-  width: 40px;
-  height: 40px;
+  width: 40px; height: 40px;
   border: 3px solid var(--border);
   border-top-color: var(--green);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .exam-error-screen {
   min-height: 100vh;
@@ -988,75 +947,19 @@ onBeforeRouteLeave((_to, _from, next) => {
   max-width: 480px;
   margin: 0 auto;
 }
-
-.err-icon {
-  font-size: 48px;
-  margin-bottom: 4px;
-}
-
-.exam-error-screen h2 {
-  font-family: var(--font-display);
-  font-size: 20px;
-  color: var(--text);
-  margin: 0;
-}
-
-.exam-error-screen p {
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.5;
-  margin: 0;
-}
-
-.err-back {
-  background: white;
-  border: 1.5px solid var(--border);
-  color: var(--text);
-  border-radius: 12px;
-  padding: 12px 28px;
-  font-weight: 600;
-  cursor: pointer;
-  margin-top: 8px;
-}
-
-.err-upgrade {
-  display: block;
-  background: var(--green);
-  color: white;
-  text-decoration: none;
-  border-radius: 12px;
-  padding: 13px 28px;
-  font-weight: 700;
-  margin-top: 4px;
-}
+.err-icon { font-size: 48px; margin-bottom: 4px; }
+.exam-error-screen h2 { font-family: var(--font-display); font-size: 20px; color: var(--text); margin: 0; }
+.exam-error-screen p  { color: var(--muted); font-size: 14px; line-height: 1.5; margin: 0; }
+.err-back    { background: white; border: 1.5px solid var(--border); color: var(--text); border-radius: 12px; padding: 12px 28px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+.err-upgrade { display: block; background: var(--green); color: white; text-decoration: none; border-radius: 12px; padding: 13px 28px; font-weight: 700; margin-top: 4px; }
 
 /* ══ QUESTION TRANSITION ══ */
-.question-slide-enter-active {
-  transition: all 0.22s ease;
-}
-
-.question-slide-leave-active {
-  transition: all 0.16s ease;
-}
-
-.question-slide-enter-from {
-  opacity: 0;
-  transform: translateX(16px);
-}
-
-.question-slide-leave-to {
-  opacity: 0;
-  transform: translateX(-10px);
-}
+.question-slide-enter-active { transition: all 0.22s ease; }
+.question-slide-leave-active { transition: all 0.16s ease; }
+.question-slide-enter-from   { opacity: 0; transform: translateX(16px); }
+.question-slide-leave-to     { opacity: 0; transform: translateX(-10px); }
 
 /* ══ FADE ══ */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-from,   .fade-leave-to     { opacity: 0; }
 </style>

@@ -218,20 +218,48 @@ const reviewQuestion = ref(null)
 // ── Find the session
 // Check the active (just-submitted) session first — it's guaranteed in memory
 // right after submit. Only fall back to history for viewing past results.
-// const session = computed(() => {
-//   const id = route.params.sessionId
-//   if (examStore.session?.id === id) return examStore.session
-//   return examStore.history.find(h => h.id === id) ?? null
-// })
-
 const session = computed(() => {
-  if (history.state?.session) return history.state.session
   const id = route.params.sessionId
+
+  // 1. Active session in store
   if (examStore.session?.id === id) return examStore.session
+
+  // 2. Fallback from sessionStorage
+  const stored = sessionStorage.getItem('latestSession')
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored)
+      if (parsed.id === id) return parsed
+    } catch (e) {
+      console.warn('Failed to parse stored session', e)
+    }
+  }
+
+  // 3. Look in history
   return examStore.history.find(h => h.id === id) ?? null
 })
 
-const result = computed(() => session.value?.result || { correct: 0, wrong: 0, unanswered: 0, total: 0, bySubject: {} })
+// Compute the result on the fly if missing
+const result = computed(() => {
+  const s = session.value
+  if (!s) return null
+  if (s.result) return s.result
+
+  // Compute from answers/questions
+  const answers = s.answers ?? {}
+  const questions = s.questions ?? []
+  let correct = 0, wrong = 0, unanswered = 0
+
+  questions.forEach(q => {
+    const a = answers[q.id]
+    if (a === undefined || a === null) unanswered++
+    else if (a === q.correctIndex) correct++
+    else wrong++
+  })
+
+  return { correct, wrong, unanswered, total: questions.length }
+})
+// const result = computed(() => session.value?.result || { correct: 0, wrong: 0, unanswered: 0, total: 0, bySubject: {} })
 
 const pct = computed(() => result.value.total > 0
   ? Math.round((result.value.correct / result.value.total) * 100)
@@ -261,9 +289,13 @@ const betterThan = computed(() => {
   return 28
 })
 
-// ── Time taken
+// ── Time taken computed
 const timeTaken = computed(() => {
   if (!session.value) return '--'
+
+  // Use submittedAt from the stored session
+  if (!session.value.submittedAt || !session.value.startedAt) return '--'
+
   const secs = Math.round((session.value.submittedAt - session.value.startedAt) / 1000)
   const m = Math.floor(secs / 60)
   const s = secs % 60

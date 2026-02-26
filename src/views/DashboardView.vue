@@ -207,12 +207,20 @@ const subjectProgress = computed(() =>
 
 // ── Weekly scores
 const weeklyData = computed(() => progressStore.weeklyScores.slice(-7))
-const avgScore   = computed(() => {
-  if (!weeklyData.value.length) return 0
-  const avg = weeklyData.value.reduce((s, d) => s + (d.score / d.total) * 100, 0) / weeklyData.value.length
+
+const avgScore = computed(() => {
+  if (!weeklyData.value.length) return '0%'
+
+  const valid = weeklyData.value.filter(d => d.total > 0)
+
+  if (!valid.length) return '0%'
+
+  const avg =
+    valid.reduce((s, d) => s + (d.score / d.total) * 100, 0) /
+    valid.length
+
   return Math.round(avg) + '%'
 })
-
 // ── Mock leaderboard
 const leaderboard = computed(() => [
   { name: 'Adaeze O.',  score: 289, avatar: '👦🏾', isMe: false },

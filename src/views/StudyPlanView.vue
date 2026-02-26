@@ -282,7 +282,7 @@ const xpLevelPct = computed(() => {
 .plan-view { padding: 0 16px 32px; }
 
 /* ── HEADER ── */
-.plan-header { padding-top: 16px; margin-bottom: 16px; }
+.plan-header { padding-top: 25px; margin-bottom: 16px; }
 .page-title { font-family: var(--font-display); font-size: 24px; font-weight: 800; color: var(--text); margin-bottom: 14px; }
 
 .countdown-strip {

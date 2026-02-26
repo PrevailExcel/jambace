@@ -414,7 +414,7 @@ function formatTopic(t) {
 .practice-view { padding: 0 16px 24px; }
 
 /* ── HEADER ── */
-.practice-header { padding-top: 16px; margin-bottom: 16px; }
+.practice-header { padding-top: 25px; margin-bottom: 16px; }
 .page-title { font-family: var(--font-display); font-size: 24px; font-weight: 800; color: var(--text); margin-bottom: 12px; }
 
 .header-tabs { display: flex; gap: 6px; }

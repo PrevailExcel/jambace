@@ -84,8 +84,6 @@ function handleClick() {
   emit('open')
 }
 
-console.log("This is the end", isOffline.value)
-console.log("This is the end", isOffline)
 </script>
 
 <style scoped>

@@ -29,9 +29,9 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api'
 export const useSyncStore = defineStore('sync', () => {
   // ── State ──────────────────────────────────────────────────────────────
 
-  const outbox        = ref([])   // pending actions waiting to sync
-  const isSyncing     = ref(false)
-  const lastSyncedAt  = ref(null) // ISO string — last successful server sync
+  const outbox = ref([])   // pending actions waiting to sync
+  const isSyncing = ref(false)
+  const lastSyncedAt = ref(null) // ISO string — last successful server sync
 
   // ── Getters ─────────────────────────────────────────────────────────────
 
@@ -49,13 +49,13 @@ export const useSyncStore = defineStore('sync', () => {
 
   function enqueue(type, payload) {
     outbox.value.push({
-      id:          crypto.randomUUID(),
+      id: crypto.randomUUID(),
       type,
       payload,
-      createdAt:   new Date().toISOString(),
-      attempts:    0,
+      createdAt: new Date().toISOString(),
+      attempts: 0,
       lastAttempt: null,
-      error:       null,
+      error: null,
     })
   }
 
@@ -95,35 +95,34 @@ export const useSyncStore = defineStore('sync', () => {
 
       case 'exam_setup': {
         await api('POST', '/auth/setup', {
-          subjects:     item.payload.subjects,
-          exam_date:    item.payload.exam_date,
+          subjects: item.payload.subjects,
+          exam_date: item.payload.exam_date,
           target_score: item.payload.target_score,
         }, userStore.token)
         break
       }
 
       case 'session_submit': {
-        console.log('item payload', item.payload)
-  const res = await api(
-    'POST',
-    '/sync/sessions',
-    {
-      sessions: [
-        {
-          session_id: item.payload.session_id,
-          type: item.payload.type,
-          subjects: item.payload.subjects,
-          question_ids: item.payload.question_ids,
-          answers: item.payload.answers,
-          flagged_ids: item.payload.flagged_ids,
-          time_used: item.payload.time_used,
-          started_at: item.payload.started_at,
-          submitted_at: item.payload.submitted_at,
-        }
-      ]
-    },
-    userStore.token
-  )
+        const res = await api(
+          'POST',
+          '/sync/sessions',
+          {
+            sessions: [
+              {
+                session_id: item.payload.session_id,
+                type: item.payload.type,
+                subjects: item.payload.subjects,
+                question_ids: item.payload.question_ids,
+                answers: item.payload.answers,
+                flagged_ids: item.payload.flagged_ids,
+                time_used: item.payload.time_used,
+                started_at: item.payload.started_at,
+                submitted_at: item.payload.submitted_at,
+              }
+            ]
+          },
+          userStore.token
+        )
 
         // Update progress from server response (XP, badges etc.)
         const progressStore = useProgressStore()
@@ -133,7 +132,7 @@ export const useSyncStore = defineStore('sync', () => {
           })
         }
         break
-}
+      }
 
       // case 'session_submit': {
       //   const res = await api('POST', `/sessions/${item.payload.session_id}/submit`, {
@@ -157,7 +156,7 @@ export const useSyncStore = defineStore('sync', () => {
       case 'question_flag': {
         await api('POST', `/questions/${item.payload.question_id}/flag`, {
           reason: item.payload.reason,
-          note:   item.payload.note,
+          note: item.payload.note,
         }, userStore.token)
         break
       }
@@ -166,7 +165,7 @@ export const useSyncStore = defineStore('sync', () => {
         // Credit was already deducted locally — tell server so it stays in sync.
         // Server is idempotent on this: same thread_id = no-op.
         await api('POST', '/ai/threads', {
-          question_id:     item.payload.question_id,
+          question_id: item.payload.question_id,
           exam_session_id: item.payload.exam_session_id,
           offline_thread_id: item.payload.thread_id,  // prevent double-charge
         }, userStore.token)
@@ -188,8 +187,8 @@ export const useSyncStore = defineStore('sync', () => {
     const userStore = useUserStore()
     if (!userStore.token || !userStore.tokenExpiresAt) return
 
-    const expiresAt   = new Date(userStore.tokenExpiresAt)
-    const sevenDays   = 7 * 24 * 60 * 60 * 1000
+    const expiresAt = new Date(userStore.tokenExpiresAt)
+    const sevenDays = 7 * 24 * 60 * 60 * 1000
     const shouldRefresh = (expiresAt - Date.now()) < sevenDays
 
     if (!shouldRefresh) return
