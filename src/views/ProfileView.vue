@@ -13,7 +13,7 @@
       <div class="profile-badges-row">
         <div class="status-badge" :class="userStore.isFullPremium ? 'premium' : 'free'">
           <PhCrown v-if="userStore.isFullPremium" :size="12" weight="fill" />
-          <PhStar  v-else                          :size="12" weight="fill" />
+          <PhStar v-else :size="12" weight="fill" />
           {{ userStore.isFullPremium ? 'Premium' : userStore.isInTrial ? 'Trial' : 'Free' }}
         </div>
         <div class="level-badge">
@@ -46,13 +46,8 @@
           <span class="badge-count">{{ earnedBadges.length }} earned</span>
         </div>
         <div class="badges-grid">
-          <div
-            v-for="badge in allBadges"
-            :key="badge.id"
-            class="badge-tile"
-            :class="{ earned: badge.earned }"
-            :title="badge.desc"
-          >
+          <div v-for="badge in allBadges" :key="badge.id" class="badge-tile" :class="{ earned: badge.earned }"
+            :title="badge.desc">
             <div class="badge-icon" :class="{ locked: !badge.earned }">{{ badge.emoji }}</div>
             <span class="badge-name">{{ badge.name }}</span>
             <span class="badge-status" v-if="!badge.earned">{{ badge.progress }}</span>
@@ -109,7 +104,8 @@
       <div class="section-card" v-if="userStore.isPremium">
         <div class="card-header">
           <h3 class="card-title">Offline Library</h3>
-          <span class="sync-badge" :class="{ 'synced': subjectsDownloaded.length > 0, 'unsynced': subjectsDownloaded.length === 0 }">
+          <span class="sync-badge"
+            :class="{ 'synced': subjectsDownloaded.length > 0, 'unsynced': subjectsDownloaded.length === 0 }">
             {{ subjectsDownloaded.length > 0 ? 'Ready' : 'Not synced' }}
           </span>
         </div>
@@ -146,23 +142,22 @@
           <span>{{ pendingSyncCount }} session{{ pendingSyncCount !== 1 ? 's' : '' }} waiting to sync</span>
         </div>
 
-        <button
-          class="sync-now-btn"
-          :disabled="!isOnline || syncingNow || questionsStore.isWarming"
-          @click="syncNow"
-        >
+        <button class="sync-now-btn" :disabled="!isOnline || syncingNow || questionsStore.isWarming" @click="syncNow">
           <PhArrowsClockwise :size="15" weight="bold" :class="{ spinning: syncingNow || questionsStore.isWarming }" />
           {{ questionsStore.isWarming ? 'Downloading…' : syncingNow ? 'Syncing…' : 'Re-download Questions' }}
         </button>
 
         <div v-if="!isOnline" class="offline-note">
-          <PhWifiSlash :size="13" weight="fill" /> You're offline — questions will download automatically when you reconnect
+          <PhWifiSlash :size="13" weight="fill" /> You're offline — questions will download automatically when you
+          reconnect
         </div>
       </div>
 
       <!-- ── REFERRAL ── -->
       <div class="referral-card">
-        <div class="referral-icon"><PhUsers :size="20" weight="fill" /></div>
+        <div class="referral-icon">
+          <PhUsers :size="20" weight="fill" />
+        </div>
         <div class="referral-body">
           <strong>Refer friends, earn Premium</strong>
           <span>{{ userStore.referralCount }}/5 friends referred</span>
@@ -219,37 +214,37 @@ import {
   PhLightning, PhCheckCircle, PhShieldCheck, PhBell, PhLock,
   PhCloudArrowDown, PhWifiSlash, PhArrowsClockwise, PhDeviceMobile,
 } from '@phosphor-icons/vue'
-import { useUserStore }      from '@/stores/user'
-import { useProgressStore }  from '@/stores/progress'
+import { useUserStore } from '@/stores/user'
+import { useProgressStore } from '@/stores/progress'
 import { useQuestionsStore } from '@/stores/questions'
-import { useSyncStore }      from '@/stores/sync'
-import { useNetworkStore }   from '@/stores/network'
+import { useSyncStore } from '@/stores/sync'
+import { useNetworkStore } from '@/stores/network'
 import { useInstallPrompt } from '@/composables/useInstallPrompt'
-import { SUBJECT_CONFIG }    from '@/data/questions'
+import { SUBJECT_CONFIG } from '@/data/questions'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 dayjs.extend(relativeTime)
 
-const router          = useRouter()
-const userStore       = useUserStore()
-const questionsStore  = useQuestionsStore()
-const syncStore       = useSyncStore()
-const networkStore    = useNetworkStore()
-const installPrompt   = useInstallPrompt()
+const router = useRouter()
+const userStore = useUserStore()
+const questionsStore = useQuestionsStore()
+const syncStore = useSyncStore()
+const networkStore = useNetworkStore()
+const installPrompt = useInstallPrompt()
 const progressStore = useProgressStore()
 
 const showLogoutConfirm = ref(false)
-const syncingNow        = ref(false)
+const syncingNow = ref(false)
 
 // ── Offline library
 const totalOfflineQuestions = computed(() => questionsStore.totalCachedQuestions)
-const subjectsDownloaded    = computed(() => questionsStore.subjectsReadyOffline)
-const lastSyncedAt          = computed(() => syncStore.lastSyncedAt
+const subjectsDownloaded = computed(() => questionsStore.subjectsReadyOffline)
+const lastSyncedAt = computed(() => syncStore.lastSyncedAt
   ? dayjs(syncStore.lastSyncedAt).fromNow()
   : 'Never'
 )
 const pendingSyncCount = computed(() => syncStore.pendingCount)
-const isOnline         = computed(() => networkStore.isOnline)
+const isOnline = computed(() => networkStore.isOnline)
 
 async function syncNow() {
   if (!networkStore.isOnline || syncingNow.value) return
@@ -277,35 +272,35 @@ const subjectLabels = computed(() =>
 // ── Stats
 const stats = computed(() => [
   { label: 'Questions Done', value: progressStore.totalAttempted || 0, icon: PhCheckCircle, bg: '#E8FFF1', color: 'var(--green)' },
-  { label: 'Correct',        value: progressStore.totalCorrect || 0,   icon: PhTrophy,      bg: '#FFF8E1', color: 'var(--gold-dark)' },
-  { label: 'Day Streak',     value: progressStore.streak,              icon: PhLightning,   bg: '#FBE9E7', color: '#FF5722' },
-  { label: 'Total XP',       value: progressStore.xp,                  icon: PhStar,        bg: '#EDE7F6', color: 'var(--purple)' },
+  { label: 'Correct', value: progressStore.totalCorrect || 0, icon: PhTrophy, bg: '#FFF8E1', color: 'var(--gold-dark)' },
+  { label: 'Day Streak', value: progressStore.streak, icon: PhLightning, bg: '#FBE9E7', color: '#FF5722' },
+  { label: 'Total XP', value: progressStore.xp, icon: PhStar, bg: '#EDE7F6', color: 'var(--purple)' },
 ])
 
 // ── Badges
 const earnedBadges = computed(() => progressStore.badges || [])
 const allBadges = computed(() => [
-  { id: 'first_answer', emoji: '🎯', name: 'First Answer',  desc: 'Answer your first question', earned: (progressStore.totalAttempted || 0) >= 1, progress: '0/1' },
-  { id: 'streak_3',     emoji: '🔥', name: '3-Day Streak',  desc: '3 days in a row',             earned: progressStore.streak >= 3,              progress: `${progressStore.streak}/3` },
-  { id: 'streak_7',     emoji: '💥', name: 'Week Warrior',  desc: '7 days in a row',             earned: progressStore.streak >= 7,              progress: `${progressStore.streak}/7` },
-  { id: 'hundred',      emoji: '💯', name: 'Century',       desc: 'Answer 100 questions',        earned: (progressStore.totalAttempted || 0) >= 100, progress: `${progressStore.totalAttempted || 0}/100` },
-  { id: 'ace_mock',     emoji: '🏆', name: 'Mock Ace',      desc: 'Score 80%+ on a mock exam',   earned: false,                                  progress: 'Score 80%+' },
-  { id: 'referrer',     emoji: '👥', name: 'Recruiter',     desc: 'Refer 5 friends',             earned: userStore.referralCount >= 5,           progress: `${userStore.referralCount}/5` },
+  { id: 'first_answer', emoji: '🎯', name: 'First Answer', desc: 'Answer your first question', earned: (progressStore.totalAttempted || 0) >= 1, progress: '0/1' },
+  { id: 'streak_3', emoji: '🔥', name: '3-Day Streak', desc: '3 days in a row', earned: progressStore.streak >= 3, progress: `${progressStore.streak}/3` },
+  { id: 'streak_7', emoji: '💥', name: 'Week Warrior', desc: '7 days in a row', earned: progressStore.streak >= 7, progress: `${progressStore.streak}/7` },
+  { id: 'hundred', emoji: '💯', name: 'Century', desc: 'Answer 100 questions', earned: (progressStore.totalAttempted || 0) >= 100, progress: `${progressStore.totalAttempted || 0}/100` },
+  { id: 'ace_mock', emoji: '🏆', name: 'Mock Ace', desc: 'Score 80%+ on a mock exam', earned: false, progress: 'Score 80%+' },
+  { id: 'referrer', emoji: '👥', name: 'Recruiter', desc: 'Refer 5 friends', earned: userStore.referralCount >= 5, progress: `${userStore.referralCount}/5` },
 ])
 
 // ── Settings
 const settings = computed(() => {
   const base = [
-    { label: 'Notifications',     icon: PhBell,          bg: '#E8FFF1', color: 'var(--green)',     action: () => {} },
-    { label: 'Change Password',   icon: PhLock,          bg: '#EDE7F6', color: 'var(--purple)',    action: () => {} },
-    { label: 'Premium & Credits', icon: PhCrown,         bg: '#FFF8E1', color: 'var(--gold-dark)', action: () => router.push('/upgrade') },
-    { label: 'Privacy Policy',    icon: PhShieldCheck,   bg: '#E3F2FD', color: '#2196F3',          action: () => {} },
+    { label: 'Notifications', icon: PhBell, bg: '#E8FFF1', color: 'var(--green)', action: () => { } },
+    { label: 'Change Password', icon: PhLock, bg: '#EDE7F6', color: 'var(--purple)', action: () => { } },
+    { label: 'Premium & Credits', icon: PhCrown, bg: '#FFF8E1', color: 'var(--gold-dark)', action: () => router.push('/upgrade') },
+    { label: 'Privacy Policy', icon: PhShieldCheck, bg: '#E3F2FD', color: '#2196F3', action: () => { } },
   ]
   if (!installPrompt.isInstalled.value && (installPrompt.canInstall.value || installPrompt.isIos.value)) {
     base.push({
       label: 'Install App',
-      icon:  PhDeviceMobile,
-      bg:    '#E8FFF1',
+      icon: PhDeviceMobile,
+      bg: '#E8FFF1',
       color: 'var(--green)',
       action: () => installPrompt.triggerBanner(),
     })
@@ -321,7 +316,12 @@ function confirmLogout() {
 </script>
 
 <style scoped>
-.profile-view { min-height: 100vh; background: var(--bg); max-width: 480px; margin: 0 auto; }
+.profile-view {
+  min-height: 100vh;
+  background: var(--bg);
+  max-width: 480px;
+  margin: 0 auto;
+}
 
 /* ── HERO ── */
 .profile-hero {
@@ -331,197 +331,698 @@ function confirmLogout() {
   position: relative;
   overflow: hidden;
 }
+
 .hero-glow {
   position: absolute;
-  width: 280px; height: 280px;
-  background: radial-gradient(circle, rgba(0,200,83,0.12) 0%, transparent 70%);
-  top: -80px; left: 50%; transform: translateX(-50%);
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(circle, rgba(0, 200, 83, 0.12) 0%, transparent 70%);
+  top: -80px;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .profile-avatar {
-  width: 80px; height: 80px;
+  width: 80px;
+  height: 80px;
   border-radius: 24px;
   background: var(--green);
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin: 0 auto 12px;
-  box-shadow: 0 8px 28px rgba(0,200,83,0.35);
-  position: relative; z-index: 1;
+  box-shadow: 0 8px 28px rgba(0, 200, 83, 0.35);
+  position: relative;
+  z-index: 1;
 }
-.avatar-initials { font-family: var(--font-display); font-size: 28px; font-weight: 800; color: white; }
 
-.profile-name  { font-family: var(--font-display); font-size: 22px; font-weight: 800; color: white; margin-bottom: 4px; }
-.profile-email { font-size: 13px; color: rgba(255,255,255,0.45); margin-bottom: 14px; }
-
-.profile-badges-row { display: flex; align-items: center; justify-content: center; gap: 8px; }
-
-.status-badge, .level-badge, .streak-badge {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: 11.5px; font-weight: 700;
-  padding: 5px 12px; border-radius: 20px;
+.avatar-initials {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 800;
+  color: white;
 }
-.status-badge.premium { background: rgba(255,184,0,0.2); color: var(--gold); }
-.status-badge.free    { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.55); }
-.level-badge  { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.75); }
-.streak-badge { background: rgba(255,107,0,0.2); color: var(--gold); }
+
+.profile-name {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 800;
+  color: white;
+  margin-bottom: 4px;
+}
+
+.profile-email {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.45);
+  margin-bottom: 14px;
+}
+
+.profile-badges-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.status-badge,
+.level-badge,
+.streak-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 20px;
+}
+
+.status-badge.premium {
+  background: rgba(255, 184, 0, 0.2);
+  color: var(--gold);
+}
+
+.status-badge.free {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.level-badge {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.streak-badge {
+  background: rgba(255, 107, 0, 0.2);
+  color: var(--gold);
+}
 
 /* ── BODY ── */
-.profile-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.profile-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 
 /* ── STATS ── */
-.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
 .stat-tile {
-  background: white; border-radius: 14px; padding: 12px 8px;
-  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  background: white;
+  border-radius: 14px;
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
   box-shadow: var(--shadow);
 }
-.stat-icon { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
-.stat-val { font-family: var(--font-display); font-size: 18px; font-weight: 800; color: var(--text); }
-.stat-lbl { font-size: 9.5px; color: var(--muted); font-weight: 500; text-align: center; }
+
+.stat-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stat-val {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.stat-lbl {
+  font-size: 9.5px;
+  color: var(--muted);
+  font-weight: 500;
+  text-align: center;
+}
 
 /* ── SECTION CARD ── */
-.section-card { background: white; border-radius: 16px; padding: 16px; box-shadow: var(--shadow); }
-.card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.card-title  { font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--text); }
-.badge-count { font-size: 12px; color: var(--muted); }
+.section-card {
+  background: white;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.card-title {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.badge-count {
+  font-size: 12px;
+  color: var(--muted);
+}
 
 /* ── BADGES ── */
-.badges-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.badges-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
 .badge-tile {
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
   padding: 12px 8px;
   border-radius: 12px;
   background: var(--grey);
   transition: all 0.2s;
   text-align: center;
 }
-.badge-tile.earned { background: var(--gold-soft); }
-.badge-icon { font-size: 28px; transition: filter 0.2s; }
-.badge-icon.locked { filter: grayscale(1); opacity: 0.4; }
-.badge-name { font-size: 11px; font-weight: 600; color: var(--text); }
-.badge-status { font-size: 10px; color: var(--muted); }
+
+.badge-tile.earned {
+  background: var(--gold-soft);
+}
+
+.badge-icon {
+  font-size: 28px;
+  transition: filter 0.2s;
+}
+
+.badge-icon.locked {
+  filter: grayscale(1);
+  opacity: 0.4;
+}
+
+.badge-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.badge-status {
+  font-size: 10px;
+  color: var(--muted);
+}
 
 /* ── EXAM DETAILS ── */
-.exam-detail-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; }
-.ed-item { display: flex; align-items: center; gap: 10px; }
-.ed-icon { color: var(--muted); flex-shrink: 0; }
-.ed-label { flex: 1; font-size: 13.5px; color: var(--muted); }
-.ed-val   { font-size: 13.5px; font-weight: 600; color: var(--text); text-align: right; }
+.exam-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.ed-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ed-icon {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.ed-label {
+  flex: 1;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+.ed-val {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: right;
+}
 
 .edit-setup-btn {
-  display: flex; align-items: center; justify-content: center; gap: 6px;
-  width: 100%; padding: 11px;
-  background: var(--grey); border-radius: 12px;
-  font-size: 13.5px; font-weight: 600; color: var(--text);
-  text-decoration: none; transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 11px;
+  background: var(--grey);
+  border-radius: 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+  transition: all 0.2s;
 }
-.edit-setup-btn:hover { background: var(--border); }
+
+.edit-setup-btn:hover {
+  background: var(--border);
+}
 
 /* ── CREDITS ── */
-.credits-display { display: flex; align-items: center; gap: 12px; }
-.credits-numbers { flex: 1; display: flex; align-items: center; gap: 12px; }
-.credit-item { flex: 1; }
-.credit-num { display: block; font-family: var(--font-display); font-size: 26px; font-weight: 800; }
-.credit-num.green { color: var(--green); }
-.credit-num.navy  { color: var(--navy); }
-.credit-desc { font-size: 11px; color: var(--muted); }
-.credit-divider { width: 1px; height: 36px; background: var(--border); }
-.top-up-link { font-size: 13.5px; font-weight: 700; color: var(--green-dark); white-space: nowrap; }
+.credits-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.credits-numbers {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.credit-item {
+  flex: 1;
+}
+
+.credit-num {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.credit-num.green {
+  color: var(--green);
+}
+
+.credit-num.navy {
+  color: var(--navy);
+}
+
+.credit-desc {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.credit-divider {
+  width: 1px;
+  height: 36px;
+  background: var(--border);
+}
+
+.top-up-link {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--green-dark);
+  white-space: nowrap;
+}
 
 /* ── REFERRAL ── */
-.referral-card { background: white; border-radius: 16px; padding: 16px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 12px; }
+.referral-card {
+  background: white;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .referral-icon {
-  width: 44px; height: 44px;
+  width: 44px;
+  height: 44px;
   border-radius: 13px;
   background: var(--green-soft);
   color: var(--green-dark);
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
-.referral-body { flex: 1; }
-.referral-body strong { display: block; font-size: 13.5px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
-.referral-body span   { font-size: 12px; color: var(--muted); display: block; margin-bottom: 8px; }
-.ref-progress { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
-.ref-fill { height: 100%; background: var(--green); border-radius: 3px; }
+
+.referral-body {
+  flex: 1;
+}
+
+.referral-body strong {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.referral-body span {
+  font-size: 12px;
+  color: var(--muted);
+  display: block;
+  margin-bottom: 8px;
+}
+
+.ref-progress {
+  height: 5px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.ref-fill {
+  height: 100%;
+  background: var(--green);
+  border-radius: 3px;
+}
+
 .ref-btn {
-  padding: 8px 16px; background: var(--green); color: white;
-  border-radius: 10px; font-size: 13px; font-weight: 700; text-decoration: none;
+  padding: 8px 16px;
+  background: var(--green);
+  color: white;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
   flex-shrink: 0;
 }
 
 /* ── SETTINGS ── */
-.settings-list { background: white; border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); }
+.settings-list {
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
 .setting-item {
-  width: 100%; display: flex; align-items: center; gap: 12px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   padding: 14px 16px;
-  background: transparent; border: none;
+  background: transparent;
+  border: none;
   border-bottom: 1px solid var(--border);
-  cursor: pointer; transition: background 0.2s;
+  cursor: pointer;
+  transition: background 0.2s;
   text-align: left;
 }
-.setting-item:last-child { border-bottom: none; }
-.setting-item:hover { background: var(--grey); }
-.setting-icon { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.setting-label { flex: 1; font-size: 14px; font-weight: 500; color: var(--text); }
-.setting-arrow { color: var(--muted); }
+
+.setting-item:last-child {
+  border-bottom: none;
+}
+
+.setting-item:hover {
+  background: var(--grey);
+}
+
+.setting-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.setting-label {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.setting-arrow {
+  color: var(--muted);
+}
 
 /* ── LOGOUT ── */
 .logout-btn {
-  width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 14px; background: white; color: var(--red);
-  border: 2px solid var(--red-soft); border-radius: 14px;
-  font-family: var(--font-body); font-size: 15px; font-weight: 700;
-  cursor: pointer; transition: all 0.2s;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px;
+  background: white;
+  color: var(--red);
+  border: 2px solid var(--red-soft);
+  border-radius: 14px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
 }
-.logout-btn:hover { background: var(--red-soft); }
 
-.version-note { text-align: center; font-size: 12px; color: var(--muted); padding-bottom: 8px; }
+.logout-btn:hover {
+  background: var(--red-soft);
+}
+
+.version-note {
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+  padding-bottom: 8px;
+}
 
 /* ── MODAL ── */
-.modal-overlay { position: fixed; inset: 0; background: rgba(10,15,44,0.55); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 300; padding: 24px; }
-.confirm-modal { background: white; border-radius: 22px; padding: 28px 24px; text-align: center; width: 100%; max-width: 320px; }
-.confirm-modal h3 { font-family: var(--font-display); font-size: 19px; font-weight: 800; margin-bottom: 8px; }
-.confirm-modal p  { font-size: 14px; color: var(--muted); margin-bottom: 22px; }
-.confirm-actions  { display: flex; gap: 10px; }
-.btn-cancel { flex: 1; padding: 13px; background: var(--grey); border: none; border-radius: 12px; font-weight: 600; cursor: pointer; }
-.btn-logout { flex: 1; padding: 13px; background: var(--red); color: white; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; }
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 15, 44, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  padding: 24px;
+}
 
-.fade-enter-active { transition: opacity 0.2s; }
-.fade-enter-from   { opacity: 0; }
-/* ── Offline Library ──────────────────────────────────────────────── */
-.card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.card-title  { font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--text); margin: 0; }
+.confirm-modal {
+  background: white;
+  border-radius: 22px;
+  padding: 28px 24px;
+  text-align: center;
+  width: 100%;
+  max-width: 320px;
+}
 
-.sync-badge { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
-.sync-badge.synced   { background: #E8FFF1; color: var(--green); }
-.sync-badge.unsynced { background: var(--bg); color: var(--muted); }
+.confirm-modal h3 {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
 
-.offline-subjects { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
-.offline-subject-row { display: flex; align-items: center; gap: 8px; }
-.os-icon-wrap { width: 20px; display: flex; justify-content: center; }
-.os-check   { color: var(--green); }
-.os-pending { color: var(--muted); }
-.os-name  { flex: 1; font-size: 13.5px; font-weight: 600; color: var(--text); text-transform: capitalize; }
-.os-count { font-size: 12px; color: var(--muted); }
-.offline-meta  { font-size: 11.5px; color: var(--muted); margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--border); }
-.offline-empty { font-size: 13px; color: var(--muted); margin: 0 0 12px; }
+.confirm-modal p {
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 22px;
+}
 
-.download-progress-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-.download-bar  { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
-.download-fill { height: 100%; background: var(--green); border-radius: 3px; transition: width 0.3s ease; }
-.download-pct  { font-size: 12px; font-weight: 700; color: var(--green); min-width: 36px; text-align: right; }
+.confirm-actions {
+  display: flex;
+  gap: 10px;
+}
 
-.pending-sync-note { font-size: 12px; color: var(--muted); background: var(--bg); border-radius: 8px; padding: 8px 12px; margin-bottom: 10px; }
+.btn-cancel {
+  flex: 1;
+  padding: 13px;
+  background: var(--grey);
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
 
-.sync-now-btn {
-  width: 100%; display: flex; align-items: center; justify-content: center; gap: 7px;
-  background: var(--navy); color: white; border: none; border-radius: 12px;
-  padding: 12px; font-size: 14px; font-weight: 700; cursor: pointer;
+.btn-logout {
+  flex: 1;
+  padding: 13px;
+  background: var(--red);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.fade-enter-active {
   transition: opacity 0.2s;
 }
-.sync-now-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.sync-now-btn:not(:disabled):hover { opacity: 0.88; }
-.spinning { animation: spin 1s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
 
-.offline-note { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); margin-top: 8px; }
+.fade-enter-from {
+  opacity: 0;
+}
+
+/* ── Offline Library ──────────────────────────────────────────────── */
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.card-title {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.sync-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+.sync-badge.synced {
+  background: #E8FFF1;
+  color: var(--green);
+}
+
+.sync-badge.unsynced {
+  background: var(--bg);
+  color: var(--muted);
+}
+
+.offline-subjects {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.offline-subject-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.os-icon-wrap {
+  width: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.os-check {
+  color: var(--green);
+}
+
+.os-pending {
+  color: var(--muted);
+}
+
+.os-name {
+  flex: 1;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  text-transform: capitalize;
+}
+
+.os-count {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.offline-meta {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.offline-empty {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0 0 12px;
+}
+
+.download-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.download-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.download-fill {
+  height: 100%;
+  background: var(--green);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.download-pct {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--green);
+  min-width: 36px;
+  text-align: right;
+}
+
+.pending-sync-note {
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+}
+
+.sync-now-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: var(--navy);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.sync-now-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.sync-now-btn:not(:disabled):hover {
+  opacity: 0.88;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.offline-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 8px;
+}
 </style>

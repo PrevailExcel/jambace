@@ -62,6 +62,12 @@ const routes = [
         meta: { tab: 'library' }
       },
       {
+        path: '/community',
+        name: 'community',
+        component: () => import('@/views/CommunityView.vue'),
+        meta: { tab: 'community' }
+      },
+      {
         path: '/profile',
         name: 'profile',
         component: () => import('@/views/ProfileView.vue'),
