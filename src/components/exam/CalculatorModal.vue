@@ -86,16 +86,20 @@ function formatShort(v) {
 }
 
 // ── Input handlers ────────────────────────────────────────────────────────
+let nextReplace = false
+
 function digit(d) {
-  if (justEvaled.value) {
-    current.value  = d
+  if (justEvaled.value || nextReplace) {
+    current.value = d
     justEvaled.value = false
+    nextReplace = false
     return
   }
-  if (current.value === '0' && d !== '.') {
+
+  if (current.value === '0') {
     current.value = d
   } else if (current.value.length < 12) {
-    current.value = current.value + d
+    current.value += d
   }
 }
 
@@ -112,31 +116,25 @@ function decimal() {
 
 function op(symbol) {
   if (pendingOp.value && !justEvaled.value) {
-    // chain: evaluate what we have first
     evaluate()
   }
-  previous.value  = current.value
+
+  previous.value = current.value
   pendingOp.value = symbol
+  nextReplace = true
   justEvaled.value = false
-  // Next digit press will start fresh
-  const snapshot = current.value
-  current.value = snapshot  // keep display, but next digit replaces it
-  // Mark that next digit should replace current
-  _nextReplace = true
 }
 
-let _nextReplace = false
-
-const _origDigit = digit
-function digit(d) {   // override to handle "replace on next op"
-  if (_nextReplace) {
-    current.value  = d === '0' ? '0' : d
-    _nextReplace = false
-    justEvaled.value = false
-    return
-  }
-  _origDigit(d)
-}
+// const _origDigit = digit
+// function digit(d) {   // override to handle "replace on next op"
+//   if (_nextReplace) {
+//     current.value  = d === '0' ? '0' : d
+//     _nextReplace = false
+//     justEvaled.value = false
+//     return
+//   }
+//   _origDigit(d)
+// }
 
 function evaluate() {
   if (!pendingOp.value || !previous.value) return

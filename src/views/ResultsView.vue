@@ -218,7 +218,14 @@ const reviewQuestion = ref(null)
 // ── Find the session
 // Check the active (just-submitted) session first — it's guaranteed in memory
 // right after submit. Only fall back to history for viewing past results.
+// const session = computed(() => {
+//   const id = route.params.sessionId
+//   if (examStore.session?.id === id) return examStore.session
+//   return examStore.history.find(h => h.id === id) ?? null
+// })
+
 const session = computed(() => {
+  if (history.state?.session) return history.state.session
   const id = route.params.sessionId
   if (examStore.session?.id === id) return examStore.session
   return examStore.history.find(h => h.id === id) ?? null
