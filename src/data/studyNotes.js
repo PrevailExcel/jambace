@@ -13,104 +13,102 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // NOVEL: The Lekki Headmaster by Wale Okediran
 // ─────────────────────────────────────────────────────────────────────────────
-
 export const NOVEL_DATA = {
-  title:  'The Lekki Headmaster',
-  author: 'Wale Okediran',
-  genre:  'Nigerian Contemporary Fiction',
-  year:   2009,
+  title: 'The Lekki Headmaster',
+  author: 'Kabir Alabi Garba',
+  genre: 'Contemporary Nigerian Fiction',
+  year: 2024,
 
-  synopsis: `The Lekki Headmaster follows Bello Lawal, a principled and idealistic headmaster posted to a struggling public school in the rapidly developing Lekki area of Lagos. Surrounded by a community caught between traditional values and the lure of urban wealth, Bello must navigate institutional corruption, political interference, poor infrastructure, and community apathy — all while trying to give the children in his care a genuine education. The novel is a sharp critique of Nigeria's public education system and the social forces that undermine it, but ultimately it is a story of resilience, quiet heroism, and the transformative power of one committed individual.`,
+  synopsis: `The Lekki Headmaster follows Mr. Adebepo “Bepo” Adewale, a principled and dedicated headmaster of Stardom Schools in Lekki, Lagos. He is committed to transforming his school despite bureaucratic corruption, staff resistance, and social pressures. When offered an opportunity to join his wife and children in the UK, Bepo is torn between personal comfort abroad and his professional calling to nurture young Nigerians. 
+  
+  \n\nThe novel explores themes of education, integrity, societal values, migration, and the transformative impact of one committed individual in a flawed system.`,
 
   themes: [
     {
-      title: 'Corruption and Institutional Failure',
-      body: 'The school reflects the rot in the wider Nigerian system — funds are diverted, officials demand bribes, and merit is consistently sacrificed for connection. Bello\'s battle with the education authorities is the novel\'s central conflict.',
+      title: 'Education and Leadership',
+      body: 'Bepo’s leadership demonstrates the power of discipline, empathy, and vision in creating a positive learning environment, showing how one person can influence institutional culture.'
     },
     {
-      title: 'Education as Liberation',
-      body: 'Despite every obstacle, Bello holds firm to the belief that education is the only true path out of poverty. The children he teaches represent hope — and the stakes of his fight are their futures.',
+      title: 'Migration (Japa)',
+      body: 'Bepo faces the dilemma of staying in Nigeria to serve his students versus joining his family abroad, reflecting the broader societal tension of migration versus patriotism.'
     },
     {
-      title: 'Urbanisation and Social Change',
-      body: 'Lekki in the novel is a microcosm of Lagos\'s rapid transformation — old fishing communities displaced by real-estate development, traditional community bonds dissolving under economic pressure. The school sits at the fault line of old and new Nigeria.',
+      title: 'Integrity and Ethical Conflict',
+      body: 'The novel highlights the moral challenges of working in a corrupt system, emphasizing the personal cost of honesty and principled action.'
     },
     {
-      title: 'Integrity and Personal Courage',
-      body: 'Bello is not a saint but he consistently chooses principle over personal comfort. His refusal to compromise even when it costs him professionally is the moral spine of the novel.',
+      title: 'Corruption and Social Injustice',
+      body: 'Through bureaucrats, rival schools, and selfish parents, the novel shows systemic corruption and societal pressures that undermine education and justice.'
     },
     {
-      title: 'Community and Collective Responsibility',
-      body: 'The novel argues that schools fail not just because of bad governance but because communities abdicate responsibility. Parents who are absent, who do not hold leaders accountable, share in the failure.',
+      title: 'Family vs. Career',
+      body: 'Bepo’s struggle with balancing family life abroad and professional responsibility illustrates the human cost of national service.'
     },
     {
-      title: 'Gender and Opportunity',
-      body: 'Several female characters — including students — face specific barriers: early marriage, domestic burdens, sexual harassment. The novel does not romanticise these realities.',
-    },
+      title: 'Cultural Identity and National Pride',
+      body: 'The novel underscores the value of Nigerian heritage and patriotism while negotiating the pressures of a globalized world.'
+    }
   ],
 
   characters: [
-    {
-      name: 'Bello Lawal',
-      role: 'Protagonist — the headmaster',
-      description: 'An educated, principled man from a modest background who believes deeply in public education. His idealism is tested relentlessly but never fully broken. He is flawed — sometimes stubborn and self-righteous — but his commitment to his students is genuine.',
-    },
-    {
-      name: 'Mama Tunde (Iya Tunde)',
-      role: 'Community elder / PTA leader',
-      description: 'A powerful market woman and informal community leader. She represents the voice of the community and becomes one of Bello\'s most important — if unpredictable — allies. Her pragmatism contrasts with Bello\'s idealism.',
-    },
-    {
-      name: 'Mr. Otunla',
-      role: 'Local government education officer',
-      description: 'The primary antagonist. A bureaucrat who uses his position to extract bribes and sabotage anyone who challenges the status quo. He represents systemic corruption made personal.',
-    },
-    {
-      name: 'Comfort Lawal',
-      role: 'Bello\'s wife',
-      description: 'Supportive but increasingly strained by the financial and social cost of her husband\'s principles. Her character gives the novel its domestic dimension — the private toll of public integrity.',
-    },
-    {
-      name: 'Tunde',
-      role: 'Student — symbol of potential',
-      description: 'A bright student from a poor home whose fate is intertwined with the school\'s. Tunde represents what is at stake in every decision the headmaster makes.',
-    },
-    {
-      name: 'Pastor Emmanuel',
-      role: 'Local religious figure',
-      description: 'A morally ambiguous character who sometimes assists Bello and sometimes complicates matters. He reflects the complex role of religion in Nigerian public life.',
-    },
+    { name: 'Mr. Adebepo “Bepo” Adewale', role: 'Protagonist — Headmaster', description: 'Principled, dedicated, and morally upright, Bepo faces ethical dilemmas and institutional resistance but never compromises his commitment to education.' },
+    { name: 'Seri Adewale', role: 'Bepo’s wife', description: 'Lives in the UK with their children, advocates for migration for family unity and better life.' },
+    { name: 'Nike & Kike', role: 'Bepo’s children', description: 'Live with Seri in the UK, representing family ties and the pull of migration.' },
+    { name: 'Mrs. Ibidun Gloss', role: 'MD of Stardom Schools', description: 'Ambitious, sometimes harsh, admires Bepo’s integrity and leadership.' },
+    { name: 'Mrs. Grace Apeh', role: 'Vice-Principal', description: 'Supports Bepo during school crises; practical and steady.' },
+    { name: 'Mr. Jeremi Amos', role: 'School Accountant', description: 'Loyal, efficient, sometimes comic.' },
+    { name: 'Mr. Audu', role: 'Fine Arts Teacher', description: 'Comic relief and social commentary through humor.' },
+    { name: 'Mr. Ibe', role: 'Games Master', description: 'Handles school sports and discipline; secondary support.' },
+    { name: 'Mrs. Ignatius', role: 'Parent', description: 'Represents community pressures and family involvement.' },
+    { name: 'Mr. Ibe Ignatius', role: 'Parent', description: 'Father of a student; shows influence of family on school politics.' },
+    { name: 'Banky', role: 'Student', description: 'Prefect election rival; represents ambition and youthful rivalry.' },
+    { name: 'Tosh (Ogba Junior)', role: 'Student', description: 'Banky’s rival; son of Chief Ogba; their conflict reflects societal influence on students.' },
+    { name: 'Chief Didi Ogba', role: 'Tosh’s father', description: 'Represents past grievances and external social pressures.' },
+    { name: 'Mr. Ayesoro', role: 'Government Teacher', description: 'Part of teaching staff, enforces curriculum.' },
+    { name: 'Mrs. Mary Ladele', role: 'Parent', description: 'Shows community concerns about school events.' },
+    { name: 'Mr. Fafore', role: 'English Teacher', description: 'Vindicated after grammar dispute; highlights staff challenges.' },
+    { name: 'Mrs. Guta', role: 'Parent', description: 'Complains about school grammar issues; societal interference.' },
+    { name: 'Mrs. Ogunwale & Family', role: 'Bepo’s landlords', description: 'Supportive neighbors; host Bepo during his stay in Lekki.' },
+    { name: 'Jide & Kemi', role: 'Grandchildren of landlords', description: 'Mentored by Bepo; represent youth influence.' },
+    { name: 'Tai', role: 'Passport Agent', description: 'Helps Bepo navigate migration bureaucracy.' },
+    { name: 'Chief David Aje', role: 'School Founder', description: 'Founder of Stardom Schools; father of Mrs. Gloss.' },
+    { name: 'Mr. Egi Meko', role: 'Former Director at Beesway', description: 'Represents corruption and unethical leadership in Bepo’s past.' },
+    { name: 'Minor Characters', role: 'Various', description: 'Includes students (Ikenna, Favour), teachers (Mr. Ope Wande, Mrs. Beke Egbin), community figures, airport officials, and symbolic dream characters to enrich the story and illustrate societal systems.' }
   ],
 
   chapters: [
-    { number: 1, title: 'Arrival', summary: 'Bello arrives at the Lekki school for the first time and is confronted immediately by the physical decay of the building, absent teachers, and an almost feral atmosphere among the students. He begins to understand the scale of the problem.' },
-    { number: 2, title: 'The Community', summary: 'Bello explores Lekki — the fishing villages, the luxury estates under construction, the market. He meets Mama Tunde and begins to understand the social dynamics he is operating within.' },
-    { number: 3, title: 'First Battles', summary: 'Bello introduces discipline and structure. Some teachers resist. He clashes with Mr. Otunla for the first time over missing school funds. The community is watchful but not yet engaged.' },
-    { number: 4, title: 'The Children', summary: 'Several students are introduced in depth — including Tunde. Bello begins holding extra classes. A girl is withdrawn from school for marriage. Bello confronts her father.' },
-    { number: 5, title: 'Political Interference', summary: 'A local politician attempts to use the school for a rally and expects Bello\'s cooperation. Bello\'s refusal has professional consequences. His relationship with Comfort becomes strained.' },
-    { number: 6, title: 'Allies and Enemies', summary: 'Mama Tunde mobilises the PTA after Bello speaks at a community meeting. Some teachers begin to align with Bello. Otunla escalates his interference.' },
-    { number: 7, title: 'Crisis', summary: 'A major crisis — the school building partially collapses (or faces closure order). Bello fights to keep it open. The community is forced to decide whether to support him.' },
-    { number: 8, title: 'Resolution', summary: 'A form of resolution is reached — not a clean victory but a qualified one. The school survives. Otunla faces some accountability. Tunde\'s future is secured. Bello remains — battered but unbroken.' },
+    { number: 1, title: 'Dusk', summary: 'Bepo experiences emotional breakdown during assembly, introducing his inner conflict between duty and migration.' },
+    { number: 2, title: 'The Enticement', summary: 'Bepo reflects on opportunity in the UK; reveals family and personal stakes.' },
+    { number: 3, title: 'Migration Tales', summary: 'Narrative explores Nigerians abroad, Bepo weighs pros and cons of leaving.' },
+    { number: 4, title: 'A Case of Visa Denied', summary: 'Bureaucratic challenges arise with visa and passports, highlighting systemic frustrations.' },
+    { number: 5, title: 'Snake in the Roof', summary: 'School politics, teacher conflicts, and minor corruption incidents unfold; Bepo begins solving structural issues.' },
+    { number: 6, title: 'Ade as Well as Jide — COMES vs. COME', summary: 'Grammar dispute escalates to larger staff and student tensions; Bepo intervenes for fairness.' },
+    { number: 7, title: 'Ritualists', summary: 'Explores societal corruption and external influences affecting students; Bepo faces moral dilemmas.' },
+    { number: 8, title: 'Missions Unaccomplished', summary: 'Past school projects remain incomplete; Bepo reflects on ethical leadership and personal sacrifice.' },
+    { number: 9, title: 'Laughing Waterfalls', summary: 'Student rivalry between Banky and Tosh escalates, reflecting family influence and social tension.' },
+    { number: 10, title: 'Passport Pains', summary: 'Administrative hurdles delay migration; Bepo navigates frustration and public bureaucracy.' },
+    { number: 11, title: 'Point of No Return', summary: 'Bepo decides on his final path, balancing family desires and professional commitment.' },
+    { number: 12, title: 'Dawn', summary: 'Conclusion: Bepo’s dedication recognized, students and staff celebrate his leadership, and a bittersweet resolution emphasizes education, integrity, and nationhood.' }
   ],
 
   literaryDevices: [
-    { device: 'Symbolism', example: 'The crumbling school building symbolises the state of public education in Nigeria.' },
-    { device: 'Irony', example: 'The school is located in Lekki — one of Lagos\'s most expensive areas — yet it is in a state of utter neglect.' },
-    { device: 'Characterisation', example: 'Okediran uses dialogue and action rather than description to reveal character — Bello is known by what he does, not what the narrator tells us.' },
-    { device: 'Social Realism', example: 'The novel deliberately avoids romanticising poverty or corruption — it shows both in unflinching, specific detail.' },
-    { device: 'Foreshadowing', example: 'Early descriptions of the crumbling building foreshadow the structural crisis in Chapter 7.' },
-    { device: 'Dialogue', example: 'Lagos pidgin and Yoruba phrases are woven into dialogue to ground characters in authentic Nigerian speech.' },
+    { device: 'Symbolism', example: 'Bepo’s decision between staying or leaving represents national vs personal duty.' },
+    { device: 'Contrast', example: 'Corruption in previous schools vs integrity at Stardom Schools highlights moral conflict.' },
+    { device: 'Flashback', example: 'Past experiences at Beesway illustrate formative challenges shaping Bepo’s ethics.' },
+    { device: 'Realism', example: 'Details of bureaucracy, student behavior, and Lagos settings provide authentic Nigerian context.' },
+    { device: 'Dialogue', example: 'Pidgin and Nigerian English reflect culture, humor, and social interactions.' },
+    { device: 'Foreshadowing', example: 'Early emotional breakdown hints at later critical choices and climax.' }
   ],
 
   examTips: [
-    'JAMB frequently asks about themes — know all six themes and a textual example for each.',
-    'Character questions often focus on Bello\'s relationship with specific characters. Know Bello + Mama Tunde, Bello + Otunla, Bello + Comfort.',
-    'Know the novel\'s setting in detail — Lekki\'s social geography matters to the novel\'s meaning.',
-    'Literary device questions are common — especially symbolism, irony, and characterisation.',
-    'The author\'s purpose (social criticism of Nigeria\'s education system) is a recurring essay and MCQ topic.',
-    '"What does X represent?" questions are about symbolism. The school itself is the most important symbol.',
-    'Know the title\'s significance — "Lekki Headmaster" signals both place (specific, real Lagos) and role (institutional, not personal).',
-  ],
+    'Focus on Bepo’s dilemma: staying in Nigeria vs migrating for family.',
+    'Understand the role of each major and minor character and their impact on the school and community.',
+    'Memorize key themes: education, migration, integrity, corruption, family, culture.',
+    'Pay attention to chapter summaries; JAMB often asks cause-effect or sequence questions.',
+    'Identify literary devices in context; symbolism, contrast, flashback are common.',
+    'Be able to quote examples illustrating character traits or thematic points.',
+    'Understand the significance of the school as a microcosm of Nigerian society.'
+  ]
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
