@@ -58,7 +58,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { SUBJECT_CONFIG } from '@/data/questions'
 
 const props = defineProps({
@@ -72,7 +72,20 @@ const props = defineProps({
 const emit = defineEmits(['goto'])
 
 const subjectConfig = SUBJECT_CONFIG
-const activeSubject = ref(props.subjects[0] || null)
+
+const activeSubject = ref(null)
+
+// 1️⃣ Sync with current question automatically
+watch(
+  () => props.currentIndex,
+  () => {
+    const current = props.questions[props.currentIndex]
+    if (current) {
+      activeSubject.value = current.subject
+    }
+  },
+  { immediate: true }
+)
 
 const filteredQuestions = computed(() => {
   if (!activeSubject.value || props.subjects.length <= 1) return props.questions
