@@ -13,12 +13,15 @@
  * The "Not downloaded" state only shows when genuinely offline with no cache.
  */
 
-import { defineStore }     from 'pinia'
-import { ref, computed }   from 'vue'
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useNetworkStore } from './network'
-import { useUserStore }    from './user'
+import { useUserStore } from './user'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api'
+const userStore = useUserStore()
+const router = useRouter()
 
 export const useQuestionsStore = defineStore('questions', () => {
 
@@ -29,10 +32,10 @@ export const useQuestionsStore = defineStore('questions', () => {
    * Persisted as plain JSON. Used only when offline.
    * Updated silently after every successful online fetch.
    */
-  const cache    = ref({})
+  const cache = ref({})
   const coverage = ref({})   // { [subject]: { cachedAt: ISO, count: number } }
 
-  const loading   = ref(false)
+  const loading = ref(false)
   const isWarming = ref(false)   // true while background warm-up is running
 
   // ── Getters ──────────────────────────────────────────────────────────────
@@ -64,7 +67,7 @@ export const useQuestionsStore = defineStore('questions', () => {
 
   async function fetchQuestions({ subject, year, topic, count = 40, shuffle = true }) {
     const networkStore = useNetworkStore()
-    const userStore    = useUserStore()
+    const userStore = useUserStore()
 
     // ── Offline: serve from cache ─────────────────────────────────────────
     if (!networkStore.isOnline) {
@@ -82,10 +85,10 @@ export const useQuestionsStore = defineStore('questions', () => {
     loading.value = true
     try {
       const params = new URLSearchParams({ subject, count })
-      if (year)  params.set('year',  year)
+      if (year) params.set('year', year)
       if (topic) params.set('topic', topic)
 
-      const res       = await apiFetch(`/questions?${params}`, userStore.token)
+      const res = await apiFetch(`/questions?${params}`, userStore.token)
       const body = await res.json()
       const questions = transformQuestions(body.questions ?? body)
 
@@ -122,9 +125,9 @@ export const useQuestionsStore = defineStore('questions', () => {
    * Runs synchronously — no awaiting, no encryption, no side effects.
    */
   function updateCache(subject, incoming) {
-    const existing    = cache.value[subject] ?? []
+    const existing = cache.value[subject] ?? []
     const existingIds = new Set(existing.map(q => q.id))
-    const merged      = [...existing, ...incoming.filter(q => !existingIds.has(q.id))]
+    const merged = [...existing, ...incoming.filter(q => !existingIds.has(q.id))]
 
     // Replace the whole ref key — avoids partial mutation during render
     cache.value = { ...cache.value, [subject]: merged }
@@ -136,7 +139,7 @@ export const useQuestionsStore = defineStore('questions', () => {
   }
 
   function clearCache() {
-    cache.value    = {}
+    cache.value = {}
     coverage.value = {}
   }
 
@@ -149,6 +152,12 @@ export const useQuestionsStore = defineStore('questions', () => {
    * Non-blocking — callers do NOT await this.
    */
   async function warmCache(subjects = []) {
+    if (!subjects.length) {
+      if (router.currentRoute.value.name !== 'setup') {
+        router.replace({ name: 'setup' })
+      }
+      return
+    }
     const networkStore = useNetworkStore()
     if (!networkStore.isOnline || isWarming.value) return
     if (!subjects.length) return
@@ -167,9 +176,9 @@ export const useQuestionsStore = defineStore('questions', () => {
         try {
           // Fetch a full page quietly — same transform pipeline
           const userStore = useUserStore()
-          const params    = new URLSearchParams({ subject, count: 60 })
-          const res       = await apiFetch(`/questions?${params}`, userStore.token)
-          const body      = await res.json()
+          const params = new URLSearchParams({ subject, count: 60 })
+          const res = await apiFetch(`/questions?${params}`, userStore.token)
+          const body = await res.json()
           const questions = transformQuestions(body.questions ?? body)
           if (questions.length) updateCache(subject, questions)
         } catch {
@@ -188,13 +197,13 @@ export const useQuestionsStore = defineStore('questions', () => {
 
   async function flagQuestion(questionId, reason, note) {
     const networkStore = useNetworkStore()
-    const userStore    = useUserStore()
+    const userStore = useUserStore()
 
     if (networkStore.isOnline) {
       await apiFetch(`/questions/${questionId}/flag`, userStore.token, {
         method: 'POST',
-        body:   JSON.stringify({ reason, note }),
-      }).catch(() => {}) // fire and forget
+        body: JSON.stringify({ reason, note }),
+      }).catch(() => { }) // fire and forget
     } else {
       const { useSyncStore } = await import('./sync')
       useSyncStore().enqueue('question_flag', { question_id: questionId, reason, note })
@@ -212,8 +221,8 @@ export const useQuestionsStore = defineStore('questions', () => {
   function transformQuestion(q) {
     return {
       ...q,
-      correctIndex: q.correct_index  ?? q.correctIndex  ?? 0,
-      imagePath:    q.image_path     ?? q.imagePath     ?? null,
+      correctIndex: q.correct_index ?? q.correctIndex ?? 0,
+      imagePath: q.image_path ?? q.imagePath ?? null,
       // Ensure options is always a plain array (API may return object or array)
       options: Array.isArray(q.options)
         ? q.options
@@ -229,7 +238,7 @@ export const useQuestionsStore = defineStore('questions', () => {
 
   function filterAndReturn(questions, { year, topic, count, shuffle }) {
     let q = [...questions]
-    if (year)  q = q.filter(x => x.year  === Number(year))
+    if (year) q = q.filter(x => x.year === Number(year))
     if (topic) q = q.filter(x => x.topic === topic)
     return shuffleIfNeeded(q.slice(0, count), shuffle)
   }
@@ -249,6 +258,22 @@ export const useQuestionsStore = defineStore('questions', () => {
         ...(opts.headers ?? {}),
       },
     })
+
+    // 🔥 Handle session expiration globally
+    if (
+      res.status === 401) {
+
+      userStore.logout()
+      router.replace({ name: 'auth' })
+
+      // Prevent redirect loop
+      if (router.currentRoute.value.name !== 'auth') {
+        router.push({ name: 'auth' })
+      }
+
+      throw new Error('Session expired')
+    }
+
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
       throw Object.assign(

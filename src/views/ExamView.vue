@@ -221,14 +221,20 @@
       @cancel="showFlagModal = false"
     />
 
-    <ExplanationPanel
-      :visible="showExplanation"
-      :explanation="currentQuestion?.explanation"
-      :correctIndex="currentQuestion?.correctIndex"
-      :correctOption="currentQuestion?.options[currentQuestion?.correctIndex]"
-      :locked="!userStore.isPremium && !userStore.isInTrial"
-      @close="showExplanation = false"
-    />
+<ExplanationPanel
+  :visible="showExplanation"
+  :questionText="currentQuestion?.text"
+  :subject="currentQuestion?.subject"
+  :topic="currentQuestion?.topic"
+  :year="currentQuestion?.year"
+  :explanation="currentQuestion?.explanation"
+  :correctIndex="currentQuestion?.correctIndex"
+  :correctOption="currentQuestion?.options[currentQuestion?.correctIndex]"
+  :options="currentQuestion?.options"
+  :questionId="currentQuestion?.id"
+  :locked="!userStore.isPremium && !userStore.isInTrial"
+  @close="showExplanation = false"
+/>
 
     <!-- Overlay when panel is open -->
     <Transition name="fade">

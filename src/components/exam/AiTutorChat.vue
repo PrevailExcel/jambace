@@ -180,7 +180,7 @@ const suggestions = computed(() => {
     mathematics: ['Show me the full working', 'What formula applies here?'],
     chemistry:   ['Draw the structure for me', 'How does this relate to the periodic table?'],
     biology:     ['Where does this happen in the body?', 'Connect this to evolution'],
-    english:     ['Show another sentence like this', 'What's the grammar rule?'],
+    english:     ['Show another sentence like this', "What's the grammar rule?"],
   }
   return [...base.slice(0, 2), ...(subjectSpecific[subj] || []).slice(0, 1)]
 })

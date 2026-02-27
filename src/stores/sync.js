@@ -22,9 +22,11 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useUserStore } from './user'
 import { useProgressStore } from './progress'
+import { useRouter } from 'vue-router'
 
 const MAX_ATTEMPTS = 4
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api'
+const router = useRouter();
 
 export const useSyncStore = defineStore('sync', () => {
   // ── State ──────────────────────────────────────────────────────────────
@@ -32,6 +34,7 @@ export const useSyncStore = defineStore('sync', () => {
   const outbox = ref([])   // pending actions waiting to sync
   const isSyncing = ref(false)
   const lastSyncedAt = ref(null) // ISO string — last successful server sync
+  const userStore = useUserStore();
 
   // ── Getters ─────────────────────────────────────────────────────────────
 
@@ -257,6 +260,21 @@ export const useSyncStore = defineStore('sync', () => {
     if (body && method !== 'GET') opts.body = JSON.stringify(body)
 
     const res = await fetch(`${API_BASE}${path}`, opts)
+    // Handle session expiration globally
+    if (
+      res.status == 401
+    ) {
+      userStore.logout()
+      router.replace({ name: 'auth' })
+
+      // Prevent redirect loop
+      if (router.currentRoute.value.name !== 'auth') {
+        router.push({ name: 'auth' })
+      }
+
+      throw new Error('Session expired')
+    }
+
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
       throw new Error(err.message ?? `HTTP ${res.status}`)
