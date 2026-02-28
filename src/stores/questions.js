@@ -20,7 +20,6 @@ import { useNetworkStore } from './network'
 import { useUserStore } from './user'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api'
-const userStore = useUserStore()
 const router = useRouter()
 
 export const useQuestionsStore = defineStore('questions', () => {
@@ -37,6 +36,8 @@ export const useQuestionsStore = defineStore('questions', () => {
 
   const loading = ref(false)
   const isWarming = ref(false)   // true while background warm-up is running
+  const userStore = useUserStore()
+
 
   // ── Getters ──────────────────────────────────────────────────────────────
 

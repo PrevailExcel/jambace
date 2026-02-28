@@ -170,6 +170,7 @@ const router          = useRouter()
 const route           = useRoute()
 const userStore       = useUserStore()
 const syncStore       = useSyncStore()
+const questionsStore   = useQuestionsStore()
 
 const mode         = ref('signup')
 const showPassword = ref(false)

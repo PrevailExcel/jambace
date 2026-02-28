@@ -140,6 +140,7 @@ export function useAiTutor() {
         role:    'assistant',
         content: reply,
       })
+      console.log('Messages after AI reply:', messages.value)
     } catch (err) {
       if (err.message === 'OFFLINE') {
         error.value = 'offline'
@@ -182,13 +183,14 @@ export function useAiTutor() {
         messages:         history,
       }),
     })
-
+    
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
       throw new Error(data.message ?? `HTTP ${res.status}`)
     }
 
     const data = await res.json()
+    console.log('AI response data:', data)  
     return data.reply
   }
 
@@ -205,8 +207,10 @@ export function useAiTutor() {
         credit_type:     creditType,
       }),
     })
+    
     if (res.ok) {
       const data = await res.json()
+      console.log('Credit confirmation response:', data)
       threadId.value = data.thread?.id ?? null
     }
   }

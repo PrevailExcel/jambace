@@ -50,13 +50,13 @@
 
         <!-- Message list -->
         <template v-else>
-          <div v-for="msg in tutor.messages" :key="msg.id" class="message-row" :class="msg.role">
+          <div v-for="msg in tutor.messages.value" :key="msg.id" class="message-row" :class="msg.role">
             <div v-if="msg.role === 'assistant'" class="msg-avatar">
               <PhRobot :size="13" weight="fill" />
             </div>
-            <div class="bubble" :class="msg.role">{{ msg.content }}</div>
+            <div class="bubble" :class="msg.role" v-html="markdownToHtml(msg.content)"></div>
           </div>
-          <div v-if="tutor.loading" class="message-row assistant">
+          <div v-if="tutor.loading.value" class="message-row assistant">
             <div class="msg-avatar">
               <PhRobot :size="13" weight="fill" />
             </div>
@@ -64,7 +64,7 @@
           </div>
         </template>
 
-        <div v-if="tutor.error" class="error-chip">
+        <div v-if="tutor.error.value" class="error-chip">
           <PhWarningCircle :size="14" weight="fill" />
           <span v-if="tutor.error === 'offline'">You went offline. Reconnect and try again.</span>
           <span v-else>Something went wrong. Please try again.</span>
@@ -75,8 +75,8 @@
       <div class="thread-input-wrap">
         <textarea v-model="inputText" ref="inputEl" class="thread-input"
           :placeholder="threadStarted ? 'Ask another question...' : 'Ask your question...'" rows="1"
-          :disabled="tutor.loading" @keydown.enter.exact.prevent="send" @input="autoResize"></textarea>
-        <button class="send-btn" :class="{ active: inputText.trim() }" :disabled="!inputText.trim() || tutor.loading"
+          :disabled="tutor.loading.value" @keydown.enter.exact.prevent="send" @input="autoResize"></textarea>
+        <button class="send-btn" :class="{ active: inputText.trim() }" :disabled="!inputText.trim() || tutor.loading.value"
           @click="send">
           <PhPaperPlaneTilt :size="16" weight="fill" />
         </button>
@@ -154,7 +154,7 @@ async function startThread(text) {
 
 async function send() {
   const text = inputText.value.trim()
-  if (!text || tutor.loading) return
+  if (!text || tutor.loading.value) return
   inputText.value = ''
   await nextTick()
   if (inputEl.value) inputEl.value.style.height = 'auto'
@@ -174,7 +174,50 @@ function scrollToBottom() {
   })
 }
 
-watch(() => tutor.messages.length, scrollToBottom)
+watch(() => tutor.messages.value.length, scrollToBottom)
+
+function markdownToHtml(text) {
+  if (!text) return ''
+
+  // Escape HTML to prevent XSS
+  text = text.replace(/&/g, '&amp;')
+             .replace(/</g, '&lt;')
+             .replace(/>/g, '&gt;')
+
+  // Bold: **text**
+  text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+
+  // Italics: *text*
+  text = text.replace(/\*(.+?)\*/g, '<em>$1</em>')
+
+  // Inline code: `code`
+  text = text.replace(/`(.+?)`/g, '<code>$1</code>')
+
+  // Blockquotes: > quote
+  text = text.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>')
+
+  // Lists: - item
+  if (/- /.test(text)) {
+    const lines = text.split('\n')
+    let inList = false
+    text = lines.map(line => {
+      if (line.startsWith('- ')) {
+        if (!inList) { inList = true; return '<ul><li>' + line.slice(2) + '</li>' }
+        return '<li>' + line.slice(2) + '</li>'
+      } else {
+        if (inList) { inList = false; return '</ul>' + line }
+        return line
+      }
+    }).join('\n')
+    if (inList) text += '</ul>'
+  }
+
+  // Convert remaining newlines to <br>
+  text = text.replace(/\n/g, '<br>')
+
+  return text
+}
+
 </script>
 
 <style scoped>

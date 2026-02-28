@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import dayjs from 'dayjs'
+import { useQuestionsStore } from './questions'
+
 
 export const CREDIT_PACKS = [
   { id: 'pack_50',  credits: 50,  price: 200,  label: '50 Credits',  tag: null },
@@ -15,6 +17,7 @@ export const useUserStore = defineStore('user', () => {
   const profile         = ref(null)   // { id, name, email, avatar, phone }
   const token           = ref(null)
   const tokenExpiresAt  = ref(null)   // ISO string — used for silent refresh
+  const questionsStore   = useQuestionsStore()
 
   // ── Subscription ──────────────────────────────────────────────────────
   const trialStartDate      = ref(null)
@@ -189,6 +192,7 @@ export const useUserStore = defineStore('user', () => {
 
     // Question cache is plain JSON — pinia persist clears on next hydration
     // Call questionsStore.clearCache() from the logout UI if you want immediate wipe
+    questionsStore.clearCache()
   }
 
   function checkSession() {

@@ -221,6 +221,7 @@ import { useSyncStore } from '@/stores/sync'
 import { useNetworkStore } from '@/stores/network'
 import { useInstallPrompt } from '@/composables/useInstallPrompt'
 import { SUBJECT_CONFIG } from '@/data/questions'
+import { usePushNotifications } from '@/composables/usePushNotifications'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 dayjs.extend(relativeTime)
@@ -288,10 +289,61 @@ const allBadges = computed(() => [
   { id: 'referrer', emoji: '👥', name: 'Recruiter', desc: 'Refer 5 friends', earned: userStore.referralCount >= 5, progress: `${userStore.referralCount}/5` },
 ])
 
+// ── Push Notifications ──
+const VAPID_PUBLIC_KEY = 'BC8V04RCbwDwg2AHODEu8Iw2j4YzXO0bWBm0ocPg2ti7uAayqEMnAdYdoFd1dMnEh_fvSIsFKRBguKPynmrMpxw'
+const push = usePushNotifications(VAPID_PUBLIC_KEY)
+
 // ── Settings
 const settings = computed(() => {
   const base = [
-    { label: 'Notifications', icon: PhBell, bg: '#E8FFF1', color: 'var(--green)', action: () => { } },
+    {
+      get label() {
+        return push.isSubscribed.value ? 'Notifications Enabled' : 'Enable Notifications'
+      },
+      icon: PhBell, bg: '#E8FFF1', color: 'var(--green)',
+      action: async () => {
+        if (push.isSubscribed.value) {
+          alert('Notifications are already enabled ✅')
+          return
+        }
+
+        try {
+          const permission = await Notification.requestPermission()
+          if (permission !== 'granted') {
+            alert('You denied notifications. You can enable them later in browser settings.')
+            return
+          }
+
+          await push.register()
+          const sub = await push.subscribe()
+          if (sub) {
+            console.log('Push subscription ready:', sub)
+            push.isSubscribed.value = true
+
+            const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api'
+            const token = userStore.token
+
+            await fetch(`${API_BASE}/webpush-subscribe`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              },
+              body: JSON.stringify(sub.toJSON())
+            })
+              .then(res => {
+                if (!res.ok) throw new Error('Failed to save subscription on server')
+                console.log('Subscription saved on server')
+              })
+            // TODO: send subscription object to backend
+          }
+        } catch (err) {
+          console.error('Push setup failed', err)
+          alert('Failed to enable notifications')
+        }
+      },
+
+    },
     { label: 'Change Password', icon: PhLock, bg: '#EDE7F6', color: 'var(--purple)', action: () => { } },
     { label: 'Premium & Credits', icon: PhCrown, bg: '#FFF8E1', color: 'var(--gold-dark)', action: () => router.push('/upgrade') },
     { label: 'Privacy Policy', icon: PhShieldCheck, bg: '#E3F2FD', color: '#2196F3', action: () => { } },

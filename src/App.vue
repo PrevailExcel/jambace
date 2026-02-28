@@ -9,7 +9,7 @@
       </div>
     </Transition>
 
-    <!-- ── Outbox sync indicator ── -->
+    <!-- ── Outbox sync indicator ──
     <Transition name="slide-down">
       <div v-if="showSyncBanner" class="status-bar sync-bar">
         <span class="sync-spinner"></span>
@@ -21,7 +21,7 @@
           <button class="bar-retry" @click="retry">Retry</button>
         </span>
       </div>
-    </Transition>
+    </Transition> -->
 
     <!-- ── Router view ── -->
     <!-- <RouterView v-slot="{ Component, route }">
