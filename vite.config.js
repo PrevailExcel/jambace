@@ -8,15 +8,13 @@ export default defineConfig({
     vue(),
 
     VitePWA({
-      // ── Registration ──────────────────────────────────────────────
-      registerType: 'prompt',        // 'prompt' so we control the update UX
+      strategies: 'injectManifest',       // ← important
+      srcDir: 'src',
+      filename: 'service-worker.js',     // your custom SW
       injectRegister: 'auto',
+      registerType: 'prompt',
 
-      // ── Dev: enable SW in development for testing
-      devOptions: {
-        enabled: false,              // flip to true to test SW locally
-        type: 'module',
-      },
+      devOptions: { enabled: false, type: 'module' },
 
       // ── Web App Manifest ─────────────────────────────────────────
       manifest: {
@@ -35,8 +33,8 @@ export default defineConfig({
         id: 'ng.2Wise.app',
 
         icons: [
-          { src: '/icons/icon-72.png',  sizes: '72x72',  type: 'image/png' },
-          { src: '/icons/icon-96.png',  sizes: '96x96',  type: 'image/png' },
+          { src: '/icons/icon-72.png', sizes: '72x72', type: 'image/png' },
+          { src: '/icons/icon-96.png', sizes: '96x96', type: 'image/png' },
           { src: '/icons/icon-128.png', sizes: '128x128', type: 'image/png' },
           { src: '/icons/icon-144.png', sizes: '144x144', type: 'image/png' },
           { src: '/icons/icon-152.png', sizes: '152x152', type: 'image/png' },
